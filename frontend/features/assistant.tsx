@@ -87,6 +87,7 @@ export function Assistant() {
     requestController.current = controller;
     const pendingId = `pending-${crypto.randomUUID()}`;
     let receivedTerminalEvent = false;
+    let accumulatedText = "";
     try {
       const userMessage: ChatMessage = { id: crypto.randomUUID(), role: "user", content: prompt, sources: [], created_at: new Date().toISOString() };
       setMessages(current => [...current, userMessage, { id: pendingId, role: "assistant", content: "", sources: [], created_at: new Date().toISOString() }]);
@@ -132,8 +133,10 @@ export function Assistant() {
           else if (payload.state === "switching") setThinkingStatus(`Đang chuyển từ ${payload.provider} sang ${payload.fallback_provider}…`);
           else if (payload.state === "generating") setThinkingStatus("Đang tạo câu trả lời…");
         } else if (eventName === "token") {
+          const chunkText = String(payload.text ?? "");
+          accumulatedText += chunkText;
           setMessages(current => current.map(message => message.id === pendingId
-            ? { ...message, content: message.content + String(payload.text ?? "") }
+            ? { ...message, content: message.content + chunkText }
             : message));
           setThinkingStatus("Đang tạo câu trả lời…");
         } else if (eventName === "complete") {
@@ -149,7 +152,10 @@ export function Assistant() {
             : row));
         } else if (eventName === "error") {
           receivedTerminalEvent = true;
-          setMessages(current => current.filter(message => message.id !== pendingId));
+          // Keep accumulated text if partial generation succeeded
+          if (!accumulatedText.trim()) {
+            setMessages(current => current.filter(message => message.id !== pendingId));
+          }
           setError(String(payload.message ?? "NEU Study AI tạm thời không thể trả lời."));
         }
       };
@@ -165,9 +171,13 @@ export function Assistant() {
         }
         if (done) break;
       }
-      if (!receivedTerminalEvent) throw new ApiError("Kết nối bị đóng trước khi NEU Study AI hoàn tất câu trả lời.", 0);
+      if (!receivedTerminalEvent && !accumulatedText.trim()) {
+        throw new ApiError("Kết nối bị đóng trước khi NEU Study AI hoàn tất câu trả lời.", 0);
+      }
     } catch (reason) {
-      setMessages(current => current.filter(message => message.id !== pendingId));
+      if (!accumulatedText.trim()) {
+        setMessages(current => current.filter(message => message.id !== pendingId));
+      }
       if (controller.signal.aborted) setError("Đã dừng tạo câu trả lời. Nội dung chưa hoàn tất không được lưu.");
       else setError(reason instanceof Error ? reason.message : "Không gửi được tin nhắn.");
     } finally {
@@ -190,8 +200,6 @@ export function Assistant() {
     catch (reason) { setError(reason instanceof Error ? reason.message : "Không xóa được cuộc trò chuyện."); }
     setMenuId("");
   }
-
-  
 
   return <div className="assistant-layout">
     <aside className="conversation-sidebar"><div className="conversation-head"><div><div className="eyebrow">TRỢ LÝ ĐẠI HỌC</div><h1>{user ? "AI Assistant" : "Tư vấn Tuyển sinh"}</h1></div>{user && <button className="new-chat-button" onClick={newConversation} title="Cuộc trò chuyện mới"><Plus size={17} /></button>}</div>

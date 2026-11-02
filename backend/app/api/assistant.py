@@ -14,7 +14,7 @@ from app.ai.providers import ProviderError, provider_manager
 from app.ai.rag import AnswerResult, generate_answer, ingest_document, retrieve_context, stream_answer
 from app.api.deps import current_user, require_roles
 from app.core.config import settings
-from app.core.database import get_db
+from app.core.database import SessionLocal, get_db
 from app.models import Applicant, ChatConversation, ChatMessage, KnowledgeDocument, Student, StudyTask, SupportTicket, User
 from app.schemas import ChatAsk, ConversationCreate, ConversationPublic, ConversationRename, DocumentPublic
 
@@ -157,13 +157,27 @@ def _save_assistant_message(db: Session, conversation: ChatConversation, result:
                             sources: list[dict]) -> dict:
     public_sources = [{key: source[key] for key in ("title", "excerpt", "source_type") if key in source}
                       for source in sources]
-    assistant_message = ChatMessage(conversation_id=conversation.id, role="assistant", content=result.content,
-                                    sources=public_sources)
-    db.add(assistant_message)
-    db.commit()
-    db.refresh(assistant_message)
-    return {"id": assistant_message.id, "role": "assistant", "content": result.content,
-            "sources": public_sources, "created_at": assistant_message.created_at}
+    conv_id = conversation.id if hasattr(conversation, "id") else str(conversation)
+    try:
+        if db and db.is_active:
+            assistant_message = ChatMessage(conversation_id=conv_id, role="assistant", content=result.content,
+                                            sources=public_sources)
+            db.add(assistant_message)
+            db.commit()
+            db.refresh(assistant_message)
+            return {"id": assistant_message.id, "role": "assistant", "content": result.content,
+                    "sources": public_sources, "created_at": assistant_message.created_at}
+    except Exception as exc:
+        logger.warning("Session closed/failed in _save_assistant_message, retrying with fresh SessionLocal: %s", exc)
+
+    with SessionLocal() as fresh_db:
+        assistant_message = ChatMessage(conversation_id=conv_id, role="assistant", content=result.content,
+                                        sources=public_sources)
+        fresh_db.add(assistant_message)
+        fresh_db.commit()
+        fresh_db.refresh(assistant_message)
+        return {"id": assistant_message.id, "role": "assistant", "content": result.content,
+                "sources": public_sources, "created_at": assistant_message.created_at}
 
 
 def conversation_or_404(db: Session, conversation_id: str, user_id: str) -> ChatConversation:
@@ -387,8 +401,20 @@ async def ask_assistant_stream(conversation_id: str, data: ChatAsk,
             _set_ai_status(conversation.id, {"state": "cancelled"})
             raise
         except Exception as exc:
-            logger.exception("Unexpected streaming assistant failure error_type=%s", type(exc).__name__)
+            logger.exception("Unexpected streaming assistant failure error_type=%s: %s", type(exc).__name__, exc)
             _set_ai_status(conversation.id, {"state": "failed", "error_kind": "internal_error"})
+            if output:
+                try:
+                    partial_answer = "".join(output)
+                    result = AnswerResult(partial_answer, "cloud", settings.ai_provider)
+                    message = _save_assistant_message(db, conversation, result, sources)
+                    completed = True
+                    yield _sse("complete", {"message": message, "response_mode": result.mode,
+                                             "provider": result.provider, "model": result.model,
+                                             "used_fallback": True, "metrics": {}})
+                    return
+                except Exception as save_err:
+                    logger.warning("Failed saving partial answer: %s", save_err)
             yield _sse("error", {"message": "Study AI gặp lỗi khi xử lý. Nội dung chưa hoàn tất chưa được lưu; bạn có thể thử lại."})
         finally:
             if producer_task and not producer_task.done():
