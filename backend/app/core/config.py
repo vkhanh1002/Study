@@ -1,3 +1,4 @@
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -5,6 +6,16 @@ class Settings(BaseSettings):
     app_name: str = "Study University Management API"
     api_prefix: str = "/api/v1"
     database_url: str = "postgresql+psycopg://study:study@localhost:5432/study"
+
+    @field_validator("database_url", mode="before")
+    @classmethod
+    def format_database_url(cls, v: str | None) -> str | None:
+        if isinstance(v, str):
+            if v.startswith("postgres://"):
+                return v.replace("postgres://", "postgresql+psycopg://", 1)
+            if v.startswith("postgresql://") and not v.startswith("postgresql+"):
+                return v.replace("postgresql://", "postgresql+psycopg://", 1)
+        return v
     secret_key: str = "change-this-in-production"
     access_token_minutes: int = 60
     refresh_token_days: int = 7
