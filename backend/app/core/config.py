@@ -15,8 +15,8 @@ class Settings(BaseSettings):
     groq_model: str = "openai/gpt-oss-20b"
     ai_max_output_tokens: int = 2048
     ai_temperature: float = 0.3
-    ai_provider_timeout_seconds: float = 8.0
-    ai_total_timeout_seconds: float = 18.0
+    ai_provider_timeout_seconds: float = 25.0
+    ai_total_timeout_seconds: float = 40.0
     ai_retry_delay_seconds: float = 0.2
     rag_min_score: float = 0.12
     rag_max_context_chars: int = 8000

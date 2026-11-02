@@ -10,6 +10,8 @@ import { useAuth } from "@/lib/auth-context";
 import { DemoTag, EmptyState, ErrorNotice, Loading, PageTitle, StatusBadge } from "@/components/ui";
 
 import { StudentHandbook } from "./student-handbook";
+import { StudentServices } from "./student-services";
+import { Bot, Sparkles } from "lucide-react";
 
 type FAQ = { id: string; question: string; answer: string; category: string };
 type Agent = { id: string; full_name: string; email: string };
@@ -23,7 +25,7 @@ const staffRoles = ["super_admin", "support_staff"];
 export function Support() {
   const { user } = useAuth();
   const isStaff = Boolean(user && staffRoles.includes(user.role));
-  const [hubTab, setHubTab] = useState<"handbook" | "tickets">("handbook");
+  const [hubTab, setHubTab] = useState<"handbook" | "services">("handbook");
   const [faqs, setFaqs] = useState<FAQ[]>([]); const [tickets, setTickets] = useState<Ticket[]>([]);
   const [agents, setAgents] = useState<Agent[]>([]); const [stats, setStats] = useState<SupportStats | null>(null);
   const [loading, setLoading] = useState(true); const [error, setError] = useState(""); const [success, setSuccess] = useState("");
@@ -102,7 +104,7 @@ export function Support() {
     <PageTitle
       eyebrow="MODULE M12 · HỖ TRỢ NGƯỜI HỌC"
       title={isStaff ? "Quản lý yêu cầu hỗ trợ" : "Trung tâm hỗ trợ người học"}
-      description={isStaff ? "Tiếp nhận, phân công và theo dõi trao đổi với người học." : "Cẩm nang tân sinh viên, tra cứu hệ thống website NEU và gửi yêu cầu giải đáp thủ tục."}
+      description={isStaff ? "Tiếp nhận, phân công và theo dõi trao đổi với người học." : "Cẩm nang tân sinh viên, tra cứu hệ sinh thái NEU Study, phát sinh biểu mẫu thủ tục và công cụ tính điểm GPA tín chỉ."}
       action={
         <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
           {!isStaff && (
@@ -121,10 +123,10 @@ export function Support() {
                   boxShadow: hubTab === "handbook" ? "0 2px 4px rgba(0,0,0,0.06)" : "none"
                 }}
               >
-                Cẩm nang & Tra cứu NEU
+                1. Cẩm nang & Tra cứu Website
               </button>
               <button
-                onClick={() => setHubTab("tickets")}
+                onClick={() => setHubTab("services")}
                 style={{
                   padding: "6px 14px",
                   borderRadius: "8px",
@@ -132,28 +134,31 @@ export function Support() {
                   fontWeight: 650,
                   border: "none",
                   cursor: "pointer",
-                  background: hubTab === "tickets" ? "#ffffff" : "transparent",
-                  color: hubTab === "tickets" ? "#1d4ed8" : "#475569",
-                  boxShadow: hubTab === "tickets" ? "0 2px 4px rgba(0,0,0,0.06)" : "none"
+                  background: hubTab === "services" ? "#ffffff" : "transparent",
+                  color: hubTab === "services" ? "#1d4ed8" : "#475569",
+                  boxShadow: hubTab === "services" ? "0 2px 4px rgba(0,0,0,0.06)" : "none"
                 }}
               >
-                Yêu cầu hỗ trợ (Tickets)
+                2. Dịch vụ Biểu mẫu & Tiện ích Học vụ
               </button>
             </div>
           )}
-          {user ? (
+          {!isStaff && (
+            <a href="/assistant" className="button button-primary" style={{ display: "inline-flex", alignItems: "center", gap: "6px", textDecoration: "none" }}>
+              <Sparkles size={16} /> Hỏi NEU Study AI
+            </a>
+          )}
+          {isStaff && user && (
             <button className="button button-primary" onClick={() => setFormOpen(true)}>
               <MessageCircle size={17} /> Tạo yêu cầu
             </button>
-          ) : (
-            <span className="login-hint">Đăng nhập để tạo yêu cầu</span>
           )}
         </div>
       }
     />
 
-    {!isStaff && hubTab === "handbook" ? (
-      <StudentHandbook />
+    {!isStaff ? (
+      hubTab === "handbook" ? <StudentHandbook /> : <StudentServices />
     ) : (
       <>
         {!isStaff && (
@@ -275,7 +280,7 @@ export function Support() {
           </section>
           <aside className="faq-side">
             <div className="section-heading">
-              <div><h2>Câu hỏi thường gặp</h2><p>Câu trả lời nhanh từ Study</p></div>
+              <div><h2>Câu hỏi thường gặp</h2><p>Câu trả lời nhanh từ NEU Study</p></div>
               <CircleHelp size={20} />
             </div>
             {loading ? (
@@ -292,7 +297,7 @@ export function Support() {
             )}
             <button className="faq-ai-link" onClick={() => window.location.assign("/assistant")}>
               <span className="faq-ai-icon">✦</span>
-              <span><strong>Cần trợ giúp thêm?</strong><small>Hỏi Study AI Assistant</small></span>
+              <span><strong>Cần trợ giúp thêm?</strong><small>Hỏi NEU Study AI Assistant</small></span>
               <ArrowRight size={17} />
             </button>
           </aside>

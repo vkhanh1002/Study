@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import { Bot, Check, FileText, MessageCircle, MessageSquarePlus, MoreHorizontal, Pencil, Plus, Send, Sparkles, Square, Trash2, UserRound, X } from "lucide-react";
-import { api, ApiError, authenticatedFetch } from "@/lib/api";
+import { API_BASE, api, ApiError, authenticatedFetch } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import { EmptyState, ErrorNotice, Loading } from "@/components/ui";
 
@@ -80,7 +80,7 @@ export function Assistant() {
   }
   async function sendMessage(text = input) {
     const prompt = text.trim();
-    if (!prompt || thinking || !user) return;
+    if (!prompt || thinking) return;
     setInput(""); setError(""); setThinking(true);
     let conversationId = activeId;
     const controller = new AbortController();
@@ -88,20 +88,31 @@ export function Assistant() {
     const pendingId = `pending-${crypto.randomUUID()}`;
     let receivedTerminalEvent = false;
     try {
-      if (!conversationId) {
-        const created = await api<Conversation>("/assistant/conversations", { method: "POST", body: JSON.stringify({ title: prompt.slice(0, 70) }) });
-        conversationId = created.id; setActiveId(created.id); setConversations(current => [created, ...current]);
-      }
       const userMessage: ChatMessage = { id: crypto.randomUUID(), role: "user", content: prompt, sources: [], created_at: new Date().toISOString() };
       setMessages(current => [...current, userMessage, { id: pendingId, role: "assistant", content: "", sources: [], created_at: new Date().toISOString() }]);
       setThinkingStatus("Đang truy xuất tài liệu liên quan…");
-      const response = await authenticatedFetch(`/assistant/conversations/${conversationId}/messages/stream`, {
-        method: "POST", body: JSON.stringify({ message: prompt }), signal: controller.signal,
-        headers: { Accept: "text/event-stream" },
-      });
+
+      let response: Response;
+      if (!user) {
+        response = await fetch(`${API_BASE}/chat/guest/messages`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Accept: "text/event-stream" },
+          body: JSON.stringify({ message: prompt }),
+          signal: controller.signal
+        });
+      } else {
+        if (!conversationId) {
+          const created = await api<Conversation>("/assistant/conversations", { method: "POST", body: JSON.stringify({ title: prompt.slice(0, 70) }) });
+          conversationId = created.id; setActiveId(created.id); setConversations(current => [created, ...current]);
+        }
+        response = await authenticatedFetch(`/assistant/conversations/${conversationId}/messages/stream`, {
+          method: "POST", body: JSON.stringify({ message: prompt }), signal: controller.signal,
+          headers: { Accept: "text/event-stream" },
+        });
+      }
       if (!response.ok) {
         const body = await response.json().catch(() => ({}));
-        throw new ApiError(body.detail ?? "Không gửi được câu hỏi đến Study AI.", response.status);
+        throw new ApiError(body.detail ?? "Không gửi được câu hỏi đến NEU Study AI.", response.status);
       }
       if (!response.body) throw new ApiError("Trình duyệt không nhận được luồng trả lời.", 0);
 
@@ -139,7 +150,7 @@ export function Assistant() {
         } else if (eventName === "error") {
           receivedTerminalEvent = true;
           setMessages(current => current.filter(message => message.id !== pendingId));
-          setError(String(payload.message ?? "Study AI tạm thời không thể trả lời."));
+          setError(String(payload.message ?? "NEU Study AI tạm thời không thể trả lời."));
         }
       };
       while (true) {
@@ -154,7 +165,7 @@ export function Assistant() {
         }
         if (done) break;
       }
-      if (!receivedTerminalEvent) throw new ApiError("Kết nối bị đóng trước khi Study AI hoàn tất câu trả lời.", 0);
+      if (!receivedTerminalEvent) throw new ApiError("Kết nối bị đóng trước khi NEU Study AI hoàn tất câu trả lời.", 0);
     } catch (reason) {
       setMessages(current => current.filter(message => message.id !== pendingId));
       if (controller.signal.aborted) setError("Đã dừng tạo câu trả lời. Nội dung chưa hoàn tất không được lưu.");
@@ -180,21 +191,41 @@ export function Assistant() {
     setMenuId("");
   }
 
-  if (!user) return <div className="assistant-login"><div className="assistant-login-orb"><Bot size={31} /></div><div className="eyebrow">STUDY AI ASSISTANT</div><h1>Trợ lý đại học,<br />theo ngữ cảnh của bạn.</h1><p>Đăng nhập để lưu lịch sử trò chuyện, tra cứu thông tin cá nhân theo quyền và nhận câu trả lời có nguồn tham khảo.</p><div className="assistant-login-note"><Sparkles size={16} /> Study AI chỉ xem được hồ sơ gắn với tài khoản của bạn.</div><div className="assistant-login-hint">Sử dụng nút <strong>Đăng nhập</strong> ở góc trên bên phải.</div></div>;
+  
 
   return <div className="assistant-layout">
-    <aside className="conversation-sidebar"><div className="conversation-head"><div><div className="eyebrow">TRỢ LÝ ĐẠI HỌC</div><h1>AI Assistant</h1></div><button className="new-chat-button" onClick={newConversation} title="Cuộc trò chuyện mới"><Plus size={17} /></button></div>
-      <button className="button button-primary full-width new-chat-main" onClick={newConversation}><MessageSquarePlus size={16} /> Cuộc trò chuyện mới</button>
-      <div className="conversation-list-label">GẦN ĐÂY <span>{conversations.length}</span></div>
-      {loading ? <Loading label="Đang tải hội thoại…" /> : <div className="conversation-list">{conversations.map(row => <div className={`conversation-row ${activeId === row.id ? "active" : ""}`} key={row.id}><button onClick={() => chooseConversation(row)}><MessageSquarePlus size={15} /><span>{row.title}</span></button><div className="conversation-menu-wrap"><button className="conversation-more" onClick={() => setMenuId(menuId === row.id ? "" : row.id)} aria-label="Tùy chọn hội thoại"><MoreHorizontal size={17} /></button>{menuId === row.id && <div className="conversation-menu"><button onClick={() => renameConversation(row)}><Pencil size={14} /> Đổi tên</button><button className="danger" onClick={() => deleteConversation(row)}><Trash2 size={14} /> Xóa cuộc trò chuyện</button></div>}</div></div>)}</div>}
-      <div className="conversation-sidebar-foot"><span className="privacy-shield">✓</span><span><strong>Trò chuyện riêng tư</strong><small>Chỉ bạn truy cập được lịch sử này.</small></span></div>
+    <aside className="conversation-sidebar"><div className="conversation-head"><div><div className="eyebrow">TRỢ LÝ ĐẠI HỌC</div><h1>{user ? "AI Assistant" : "Tư vấn Tuyển sinh"}</h1></div>{user && <button className="new-chat-button" onClick={newConversation} title="Cuộc trò chuyện mới"><Plus size={17} /></button>}</div>
+      {user ? (
+        <>
+          <button className="button button-primary full-width new-chat-main" onClick={newConversation}><MessageSquarePlus size={16} /> Cuộc trò chuyện mới</button>
+          <div className="conversation-list-label">GẦN ĐÂY <span>{conversations.length}</span></div>
+          {loading ? <Loading label="Đang tải hội thoại…" /> : <div className="conversation-list">{conversations.map(row => <div className={`conversation-row ${activeId === row.id ? "active" : ""}`} key={row.id}><button onClick={() => chooseConversation(row)}><MessageSquarePlus size={15} /><span>{row.title}</span></button><div className="conversation-menu-wrap"><button className="conversation-more" onClick={() => setMenuId(menuId === row.id ? "" : row.id)} aria-label="Tùy chọn hội thoại"><MoreHorizontal size={17} /></button>{menuId === row.id && <div className="conversation-menu"><button onClick={() => renameConversation(row)}><Pencil size={14} /> Đổi tên</button><button className="danger" onClick={() => deleteConversation(row)}><Trash2 size={14} /> Xóa cuộc trò chuyện</button></div>}</div></div>)}</div>}
+          <div className="conversation-sidebar-foot"><span className="privacy-shield">✓</span><span><strong>Trò chuyện riêng tư</strong><small>Chỉ bạn truy cập được lịch sử này.</small></span></div>
+        </>
+      ) : (
+        <div style={{ padding: "16px 8px", fontSize: "13px", color: "#64748b", lineHeight: 1.6 }}>
+          <div style={{ background: "#f0f9ff", padding: "14px", borderRadius: "12px", border: "1px solid #bae6fd", marginBottom: "16px", color: "#0369a1" }}>
+            <strong>💡 Chế độ Khách / Tân sinh viên</strong>
+            <p style={{ margin: "6px 0 0", fontSize: "12px" }}>Bạn có thể hỏi tự do về điểm chuẩn, chỉ tiêu, ngành học, cơ sở vật chất và cẩm nang nhập học NEU mà không cần đăng nhập.</p>
+          </div>
+          <div style={{ fontSize: "12px" }}>
+            Sinh viên NEU cần tra cứu lịch học, lịch thi, deadline cá nhân? Vui lòng sử dụng nút <strong>Đăng nhập</strong> ở góc trên bên phải.
+          </div>
+        </div>
+      )}
     </aside>
-    <section className="chat-main"><div className="chat-topline"><div className="assistant-identity"><span className="assistant-avatar"><Bot size={19} /></span><span><strong>Study AI Assistant</strong><small><i /> Trợ lý tri thức đại học</small></span></div><div className="chat-topline-actions"><a className="chat-support-link" href="/support"><MessageCircle size={15} /> Tạo yêu cầu hỗ trợ</a></div></div>
+    <section className="chat-main"><div className="chat-topline"><div className="assistant-identity"><span className="assistant-avatar"><Bot size={19} /></span><span><strong>NEU Study AI Assistant</strong><small><i /> Trợ lý tri thức NEU Study</small></span></div><div className="chat-topline-actions"><a className="chat-support-link" href="/support"><FileText size={15} /> Cẩm nang & Biểu mẫu NEU</a></div></div>
       {error && <div className="chat-error"><ErrorNotice message={error} /><button onClick={() => setError("")} aria-label="Đóng"><X size={15} /></button></div>}
       <div className="chat-scroll" ref={scrollRef}>
-      {messages.length === 0 ? <div className="chat-welcome"><div className="welcome-mark"><Bot size={27} /></div><div className="eyebrow">STUDY AI ASSISTANT</div><h2>Xin chào {user.full_name.split(" ").slice(-1)[0]}!<br />Hôm nay mình có thể giúp gì?</h2><p>Hỏi về tuyển sinh, ngành đào tạo, thủ tục sinh viên hoặc yêu cầu hỗ trợ. Câu trả lời dựa trên nguồn tri thức hiện có.</p><div className="suggestion-grid">{suggestions.map(prompt => <button key={prompt} onClick={() => sendMessage(prompt)}><span>✦</span>{prompt}</button>)}</div><div className="chat-data-note"><Sparkles size={14} /> Học phí, chỉ tiêu và thông tin ngành trong bản demo chỉ để minh họa.</div></div> : <div className="message-list">{messages.map(message => <MessageBubble key={message.id} message={message} />)}{thinking && <div className="assistant-message"><span className="message-avatar"><Bot size={16} /></span><div className="thinking-bubble"><span /><span /><span />{thinkingStatus}</div></div>}</div>}
+      {messages.length === 0 ? <div className="chat-welcome"><div className="welcome-mark"><Bot size={27} /></div><div className="eyebrow">NEU STUDY AI ASSISTANT</div><h2>{user ? `Xin chào ${user.full_name.split(" ").slice(-1)[0]}!` : "Chào bạn! Mình là Trợ lý NEU Study AI"}<br />{user ? "Hôm nay mình có thể giúp gì cho việc học của bạn?" : "Bạn đang quan tâm đến thông tin tuyển sinh hay ngành học nào?"}</h2><p>{user ? "Hỏi về quy chế đào tạo, môn học, thời khóa biểu hoặc lịch thi." : "Tư vấn điểm chuẩn 2024-2025, phương thức xét tuyển, học phí và cẩm nang tân sinh viên NEU."}</p><div className="suggestion-grid">{(user ? suggestions : [
+        "Điểm chuẩn ngành Logistics và Kiểm toán năm 2025 là bao nhiêu?",
+        "Học phí NEU một năm khoảng bao nhiêu tiền?",
+        "Thí sinh có chứng chỉ IELTS được xét tuyển vào NEU theo phương thức nào?",
+        "Tân sinh viên cần chuẩn bị những hồ sơ nhập học gì?",
+        "Đại học Kinh tế Quốc dân có mấy tòa nhà và cơ sở vật chất thế nào?"
+      ]).map(prompt => <button key={prompt} onClick={() => sendMessage(prompt)}><span>✦</span>{prompt}</button>)}</div><div className="chat-data-note"><Sparkles size={14} /> Phản hồi dựa trên Đề án tuyển sinh & Quy chế chính thức của Đại học Kinh tế Quốc dân.</div></div> : <div className="message-list">{messages.map(message => <MessageBubble key={message.id} message={message} />)}{thinking && <div className="assistant-message"><span className="message-avatar"><Bot size={16} /></span><div className="thinking-bubble"><span /><span /><span />{thinkingStatus}</div></div>}</div>}
       </div>
-      <div className="composer-area"><form className="composer" onSubmit={event => { event.preventDefault(); void sendMessage(); }}><textarea ref={inputRef} rows={1} value={input} onChange={event => setInput(event.target.value)} onKeyDown={event => { if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); void sendMessage(); } }} placeholder="Nhập câu hỏi của bạn…" aria-label="Tin nhắn" /><div className="composer-bottom"><span><Sparkles size={13} /> Trả lời có nguồn tham khảo từ Study</span><button type={thinking ? "button" : "submit"} onClick={thinking ? stopGeneration : undefined} disabled={!thinking && !input.trim()} className="send-button" aria-label={thinking ? "Dừng tạo câu trả lời" : "Gửi câu hỏi"}>{thinking ? <Square size={14} /> : <Send size={16} />}</button></div></form><p>AI có thể trả lời chưa chính xác. Kiểm tra các nguồn tham khảo với thông tin quan trọng.</p></div>
+      <div className="composer-area"><form className="composer" onSubmit={event => { event.preventDefault(); void sendMessage(); }}><textarea ref={inputRef} rows={1} value={input} onChange={event => setInput(event.target.value)} onKeyDown={event => { if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); void sendMessage(); } }} placeholder="Nhập câu hỏi của bạn…" aria-label="Tin nhắn" /><div className="composer-bottom"><span><Sparkles size={13} /> Trả lời có nguồn tham khảo từ NEU Study</span><button type={thinking ? "button" : "submit"} onClick={thinking ? stopGeneration : undefined} disabled={!thinking && !input.trim()} className="send-button" aria-label={thinking ? "Dừng tạo câu trả lời" : "Gửi câu hỏi"}>{thinking ? <Square size={14} /> : <Send size={16} />}</button></div></form><p>AI có thể trả lời chưa chính xác. Kiểm tra các nguồn tham khảo với thông tin quan trọng.</p></div>
     </section>
   </div>;
 }
@@ -202,5 +233,5 @@ export function Assistant() {
 function MessageBubble({ message }: { message: ChatMessage }) {
   const userMessage = message.role === "user";
   if (!userMessage && message.id.startsWith("pending-") && !message.content) return null;
-  return <div className={`chat-message-row ${userMessage ? "user-row" : "assistant-row"}`}>{!userMessage && <span className="message-avatar"><Bot size={18} /></span>}<div className="chat-message-content"><div className={`message-bubble ${userMessage ? "user-bubble" : "assistant-bubble"}`}>{userMessage ? <p>{message.content}</p> : <div className="markdown-body"><ReactMarkdown>{message.content}</ReactMarkdown></div>}</div><div className="message-meta">{new Date(message.created_at).toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })}{!userMessage && <span><Check size={14} /> Study AI</span>}</div></div>{userMessage && <span className="message-avatar user-message-avatar"><UserRound size={16} /></span>}</div>;
+  return <div className={`chat-message-row ${userMessage ? "user-row" : "assistant-row"}`}>{!userMessage && <span className="message-avatar"><Bot size={18} /></span>}<div className="chat-message-content"><div className={`message-bubble ${userMessage ? "user-bubble" : "assistant-bubble"}`}>{userMessage ? <p>{message.content}</p> : <div className="markdown-body"><ReactMarkdown>{message.content}</ReactMarkdown></div>}</div><div className="message-meta">{new Date(message.created_at).toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })}{!userMessage && <span><Check size={14} /> NEU Study AI</span>}</div></div>{userMessage && <span className="message-avatar user-message-avatar"><UserRound size={16} /></span>}</div>;
 }

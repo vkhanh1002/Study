@@ -169,7 +169,9 @@ class GeminiProvider:
                         try:
                             item = json.loads(raw)
                             candidates = item.get("candidates", [])
-                            parts = candidates[0].get("content", {}).get("parts", []) if candidates else []
+                            candidate = candidates[0] if candidates else {}
+                            content = candidate.get("content") or {}
+                            parts = content.get("parts") or []
                             for part in parts:
                                 if part.get("thought"):
                                     continue

@@ -344,6 +344,17 @@ def _build_generation_prompt(
     return system_message, safe_history, _redact_provider_text(question)[:6000]
 
 
+def _fallback_answer_without_llm(context: list[dict], private_context: str = "") -> str:
+    if private_context:
+        return f"Thông tin tra cứu từ hệ thống của bạn:\n{private_context}"
+    if not context:
+        return "Hiện tại hệ thống chưa tìm thấy tài liệu phù hợp trong cơ sở dữ liệu để giải đáp câu hỏi này."
+    lines = ["Dưới đây là thông tin trích xuất từ các tài liệu tham khảo chính thức của Đại học Kinh tế Quốc dân (NEU):"]
+    for i, item in enumerate(context[:3], 1):
+        lines.append(f"\n**{i}. {item.get('title', 'Tài liệu')}**\n{item.get('excerpt', '')}")
+    return "\n".join(lines)
+
+
 async def stream_answer(
     question: str,
     context: list[dict],

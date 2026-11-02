@@ -154,10 +154,10 @@ export function StudentHandbook() {
               backdropFilter: "blur(4px)"
             }}
           >
-            <Sparkles size={16} /> MODULE M12 · TRUNG TÂM HỖ TRỢ NGƯỜI HỌC NEU
+            <Sparkles size={16} /> MODULE M12 · TRUNG TÂM HỖ TRỢ NGƯỜI HỌC NEU STUDY
           </div>
           <h1 style={{ fontSize: "32px", fontWeight: 800, margin: "0 0 12px", lineHeight: 1.25 }}>
-            Chào mừng bạn đến với NEU!
+            Chào mừng bạn đến với NEU Study!
           </h1>
           <p style={{ fontSize: "16px", margin: 0, opacity: 0.92, lineHeight: 1.6 }}>
             Cổng thông tin hướng dẫn toàn diện từ các bước nhập học ban đầu cho tân sinh viên đến việc khám phá,

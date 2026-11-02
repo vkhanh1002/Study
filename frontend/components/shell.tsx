@@ -48,7 +48,7 @@ const navigation: { title: string; links: NavigationLink[] }[] = [
   {
     title: "AI ASSISTANT",
     links: [
-      { label: "Trợ lý Study AI", href: "/assistant", icon: Bot },
+      { label: "Trợ lý NEU Study AI", href: "/assistant", icon: Bot },
       { label: "Kho tri thức AI", href: "/admin", icon: BookOpen, roles: ["super_admin"] },
     ],
   },
@@ -135,7 +135,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
               </div>
               <div className="brand-name">
                 <strong>
-                  study<span>.</span>
+                  NEU Study<span>.</span>
                 </strong>
                 <small>UNIVERSITY PLATFORM</small>
               </div>
@@ -320,7 +320,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
             </div>
             <div className="brand-name">
               <strong>
-                study<span>.</span>
+                NEU Study<span>.</span>
               </strong>
               <small>UNIVERSITY PLATFORM</small>
             </div>
@@ -355,7 +355,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
             <div className="help-orb">
               <Bot size={17} />
             </div>
-            <strong>Study AI sẵn sàng</strong>
+            <strong>NEU Study AI sẵn sàng</strong>
             <p>Hỏi đáp từ kho tri thức của trường.</p>
             <Link href="/assistant" onClick={() => setMobileOpen(false)}>
               Bắt đầu trò chuyện <ChevronRight size={14} />
@@ -370,10 +370,10 @@ export function Shell({ children }: { children: React.ReactNode }) {
       <main className="main-column">
         <div className="page-content">{children}</div>
         {pathname !== "/assistant" && (
-          <Link href="/assistant" className="floating-assistant" aria-label="Mở Study AI Assistant">
+          <Link href="/assistant" className="floating-assistant" aria-label="Mở NEU Study AI Assistant">
             <span className="floating-glow" />
             <Bot size={20} />
-            <span>Hỏi Study AI</span>
+            <span>Hỏi NEU Study AI</span>
           </Link>
         )}
       </main>
@@ -430,7 +430,7 @@ function LoginDialog({ onClose }: { onClose: () => void }) {
             <GraduationCap size={20} />
           </div>
           <span>
-            study<span>.</span>
+            NEU Study<span>.</span>
           </span>
         </div>
         <div className="eyebrow">CHÀO MỪNG BẠN TRỞ LẠI</div>
