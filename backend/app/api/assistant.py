@@ -144,12 +144,14 @@ async def _prepare_turn(conversation: ChatConversation, message: str, user: User
             no_tasks_msg = "Sinh viên này hiện chưa ghi nhận deadline hay lịch thi nào trong hệ thống Kế hoạch học tập."
             private_context = f"{private_context}\n{no_tasks_msg}" if private_context else no_tasks_msg
 
-    retrieval_started = time.perf_counter()
-    sources = await retrieve_context(db, message, audience="sinh_vien", limit=5)
-    retrieval_seconds = time.perf_counter() - retrieval_started
     if private_context:
-        sources.insert(0, {"title": "Thông tin thuộc tài khoản của bạn", "excerpt": private_context.strip(),
-                           "source_type": "Hồ sơ cá nhân", "score": 5.0})
+        sources = [{"title": "Thông tin thuộc tài khoản của bạn", "excerpt": private_context.strip(),
+                    "source_type": "Hồ sơ cá nhân", "score": 5.0}]
+        retrieval_seconds = 0.0
+    else:
+        retrieval_started = time.perf_counter()
+        sources = await retrieve_context(db, message)
+        retrieval_seconds = time.perf_counter() - retrieval_started
     return history, private_context, sources, retrieval_seconds
 
 
@@ -417,6 +419,7 @@ async def ask_assistant_stream(conversation_id: str, data: ChatAsk,
                     logger.warning("Failed saving partial answer: %s", save_err)
             yield _sse("error", {"message": "Study AI gặp lỗi khi xử lý. Nội dung chưa hoàn tất chưa được lưu; bạn có thể thử lại."})
         finally:
+            _set_ai_status(conversation.id, {"state": "idle"})
             if producer_task and not producer_task.done():
                 producer_task.cancel()
                 await asyncio.gather(producer_task, return_exceptions=True)

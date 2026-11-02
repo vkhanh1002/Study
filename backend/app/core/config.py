@@ -32,7 +32,7 @@ class Settings(BaseSettings):
     rag_min_score: float = 0.12
     rag_max_context_chars: int = 8000
     upload_dir: str = "./uploads"
-    cors_origins: str = "http://localhost:3000"
+    cors_origins: str = "http://localhost:3000,http://127.0.0.1:3000"
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
     @property

@@ -33,7 +33,7 @@ services:
       AI_RETRY_DELAY_SECONDS: ${AI_RETRY_DELAY_SECONDS:-0.2}
       RAG_MIN_SCORE: ${RAG_MIN_SCORE:-0.12}
       RAG_MAX_CONTEXT_CHARS: ${RAG_MAX_CONTEXT_CHARS:-8000}
-      CORS_ORIGINS: http://localhost:3000
+      CORS_ORIGINS: http://localhost:3000,http://127.0.0.1:3000
     ports:
       - "8000:8000"
     depends_on:

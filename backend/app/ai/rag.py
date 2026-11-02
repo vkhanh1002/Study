@@ -223,7 +223,20 @@ async def retrieve_context(
                 "department": "Trường Đại học Kinh tế Quốc dân",
             })
 
-    # 5. Tra cứu FaqItem (lọc theo audience nếu audience != 'sinh_vien')
+    # 5. Tra cứu FAQ & FaqItem
+    for faq in db.scalars(select(FAQ)).all():
+        q_score = lexical_score(query, faq.question)
+        a_score = lexical_score(query, faq.answer)
+        score = max(q_score, 0.4 * q_score + 0.6 * a_score)
+        if score >= settings.rag_min_score:
+            candidates.append({
+                "title": f"FAQ: {faq.question}",
+                "excerpt": f"Câu hỏi: {faq.question}\nGiải đáp: {faq.answer}",
+                "source_type": "FAQ",
+                "score": score + 0.5,
+                "category": faq.category,
+            })
+
     faq_stmt = select(FaqItem).where(FaqItem.status == "published")
     if audience == "tuyen_sinh":
         faq_stmt = faq_stmt.where(FaqItem.audience.in_(["chung", "tuyen_sinh"]))
@@ -284,7 +297,6 @@ def _redact_provider_text(value: str) -> str:
     """Che thông tin định danh nhạy cảm trước khi gửi tới LLM."""
     value = re.sub(r"\b(?:otp|mã xác thực|mã đăng nhập)\s*(?:là|:)?\s*\d{4,8}\b", "[mã xác thực đã ẩn]", value, flags=re.IGNORECASE)
     value = re.sub(r"\b(?:mật khẩu|password|api key|khóa api|token)\s*(?:là|:|=)\s*\S+", "[bí mật đã ẩn]", value, flags=re.IGNORECASE)
-    value = re.sub(r"\b(?:mssv|mã sinh viên|student id)\s*(?:là|:)?\s*[A-Z0-9-]{4,}\b", "[mã sinh viên đã ẩn]", value, flags=re.IGNORECASE)
     value = re.sub(r"\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b", "[email đã ẩn]", value, flags=re.IGNORECASE)
     value = re.sub(r"(?<!\w)(?:\+?84|0)(?:[\s().-]*\d){8,10}(?!\w)", "[số điện thoại đã ẩn]", value)
     value = re.sub(r"(?<!\w)\d[\d\s-]{8,16}\d(?!\w)", "[mã định danh/CCCD đã ẩn]", value)

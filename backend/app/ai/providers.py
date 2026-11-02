@@ -152,6 +152,9 @@ class GeminiProvider:
             "contents": contents,
             "generationConfig": {
                 "maxOutputTokens": max_tokens,
+                "thinkingConfig": {
+                    "includeThoughts": False,
+                },
             },
         }
         try:
