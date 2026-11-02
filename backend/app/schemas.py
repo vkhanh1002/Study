@@ -219,7 +219,13 @@ class ConversationRename(BaseModel):
 
 
 class ChatAsk(BaseModel):
-    message: str = Field(min_length=1, max_length=8000)
+    message: str | None = None
+    content: str | None = None
+    prompt: str | None = None
+    question: str | None = None
+
+    def get_text(self) -> str:
+        return (self.message or self.content or self.prompt or self.question or "").strip()
 
 
 class SourcePublic(BaseModel):

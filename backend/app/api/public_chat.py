@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 from app.core.config import settings
 from app.core.database import get_db
 from app.ai.providers import provider_manager, ProviderError
-from app.ai.rag import classify_intent, retrieve_context, stream_answer
+from app.ai.rag import _fallback_answer_without_llm, classify_intent, retrieve_context, stream_answer
 from app.models import ChatFeedback, ChatMessage, Department, FaqItem, UnansweredQuestion
 from app.schemas_kb import ChatFeedbackCreate, DepartmentPublic, FaqItemPublic, GuestChatAsk
 
@@ -76,7 +76,9 @@ async def guest_chat_stream(
     Chỉ truy xuất tài liệu audience: tuyen_sinh và chung. Không tiết lộ thông tin cá nhân.
     """
     check_guest_rate_limit(request)
-    question = data.message.strip()
+    question = data.get_text()
+    if not question:
+        raise HTTPException(status_code=400, detail="Vui lòng nhập nội dung câu hỏi.")
     intent = classify_intent(question, has_auth=False)
 
     # Nếu khách hỏi dữ liệu cá nhân -> Yêu cầu đăng nhập, không thực thi
@@ -135,6 +137,29 @@ async def guest_chat_stream(
                     return
         except Exception as exc:
             logger.exception("Guest chat streaming error: %s", exc)
+            if not output:
+                try:
+                    fallback_text = _fallback_answer_without_llm(sources)
+                    yield _sse("token", {"text": fallback_text})
+                    public_sources = [
+                        {"title": s["title"], "excerpt": s["excerpt"][:400], "source_type": s["source_type"]}
+                        for s in sources
+                    ]
+                    yield _sse("complete", {
+                        "response_mode": "retrieval_only",
+                        "provider": "knowledge_base",
+                        "model": "neu_rag",
+                        "message": {
+                            "id": f"guest-{int(time.time()*1000)}",
+                            "role": "assistant",
+                            "content": fallback_text,
+                            "sources": public_sources,
+                            "created_at": datetime.now(timezone.utc).isoformat()
+                        }
+                    })
+                    return
+                except Exception as fb_exc:
+                    logger.warning("Fallback generation failed: %s", fb_exc)
             yield _sse("error", {"message": "Study AI đang gặp sự cố kết nối, bạn vui lòng thử lại sau ít phút."})
 
     return StreamingResponse(guest_event_stream(), media_type="text/event-stream")

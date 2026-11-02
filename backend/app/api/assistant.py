@@ -11,7 +11,14 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session, joinedload
 
 from app.ai.providers import ProviderError, provider_manager
-from app.ai.rag import AnswerResult, generate_answer, ingest_document, retrieve_context, stream_answer
+from app.ai.rag import (
+    AnswerResult,
+    _fallback_answer_without_llm,
+    generate_answer,
+    ingest_document,
+    retrieve_context,
+    stream_answer,
+)
 from app.api.deps import current_user, require_roles
 from app.core.config import settings
 from app.core.database import SessionLocal, get_db
@@ -307,6 +314,9 @@ def _sse(event: str, data: dict) -> str:
 @router.post("/assistant/conversations/{conversation_id}/messages/stream")
 async def ask_assistant_stream(conversation_id: str, data: ChatAsk,
                                user: User = Depends(current_user), db: Session = Depends(get_db)):
+    question = data.get_text()
+    if not question:
+        raise HTTPException(status_code=400, detail="Vui lòng nhập nội dung câu hỏi.")
     conversation = conversation_or_404(db, conversation_id, user.id)
     if _active_request(conversation.id):
         raise HTTPException(status_code=409, detail="Câu hỏi trước trong cuộc trò chuyện này vẫn đang được xử lý.")
@@ -319,9 +329,11 @@ async def ask_assistant_stream(conversation_id: str, data: ChatAsk,
         retrieval_seconds = 0.0
         producer_task = None
         queue: asyncio.Queue = asyncio.Queue()
+        sources: list[dict] = []
+        private_context: str = ""
         try:
             yield _sse("status", {"state": "retrieving"})
-            history, private_context, sources, retrieval_seconds = await _prepare_turn(conversation, data.message, user, db)
+            history, private_context, sources, retrieval_seconds = await _prepare_turn(conversation, question, user, db)
 
             def report_ai_status(state: dict):
                 _set_ai_status(conversation.id, state)
@@ -333,7 +345,7 @@ async def ask_assistant_stream(conversation_id: str, data: ChatAsk,
             async def produce():
                 try:
                     async for provider_event in stream_answer(
-                        data.message, sources, history, private_context,
+                        question, sources, history, private_context,
                         on_status=report_ai_status, budget_seconds=budget,
                     ):
                         await queue.put(("provider", provider_event))
@@ -390,6 +402,24 @@ async def ask_assistant_stream(conversation_id: str, data: ChatAsk,
                            exc.provider, exc.status_code, exc.code, exc.error_kind, exc.request_id, exc.partial_output)
             _set_ai_status(conversation.id, {"state": "failed", "provider": exc.provider,
                                              "error_kind": exc.error_kind})
+            if not output and sources:
+                try:
+                    fallback_text = _fallback_answer_without_llm(sources, private_context)
+                    result = AnswerResult(fallback_text, "retrieval_only", "knowledge_base", "neu_rag", True)
+                    message = _save_assistant_message(db, conversation, result, sources)
+                    completed = True
+                    yield _sse("token", {"text": fallback_text})
+                    yield _sse("complete", {
+                        "message": message,
+                        "response_mode": result.mode,
+                        "provider": result.provider,
+                        "model": result.model,
+                        "used_fallback": True,
+                        "metrics": {**metrics, "retrieval_seconds": round(retrieval_seconds, 3), "total_seconds": round(time.perf_counter() - request_started, 3)}
+                    })
+                    return
+                except Exception as fb_exc:
+                    logger.warning("Fallback generation failed: %s", fb_exc)
             _report_metric({"created_at": datetime.now(timezone.utc).isoformat(), "provider": exc.provider,
                             "model": None, "retrieval_seconds": round(retrieval_seconds, 3),
                             "provider_seconds": (exc.metrics or {}).get("provider_seconds"),
@@ -417,6 +447,24 @@ async def ask_assistant_stream(conversation_id: str, data: ChatAsk,
                     return
                 except Exception as save_err:
                     logger.warning("Failed saving partial answer: %s", save_err)
+            elif sources:
+                try:
+                    fallback_text = _fallback_answer_without_llm(sources, private_context)
+                    result = AnswerResult(fallback_text, "retrieval_only", "knowledge_base", "neu_rag", True)
+                    message = _save_assistant_message(db, conversation, result, sources)
+                    completed = True
+                    yield _sse("token", {"text": fallback_text})
+                    yield _sse("complete", {
+                        "message": message,
+                        "response_mode": result.mode,
+                        "provider": result.provider,
+                        "model": result.model,
+                        "used_fallback": True,
+                        "metrics": {**metrics, "retrieval_seconds": round(retrieval_seconds, 3), "total_seconds": round(time.perf_counter() - request_started, 3)}
+                    })
+                    return
+                except Exception as fb_exc:
+                    logger.warning("Fallback generation failed: %s", fb_exc)
             yield _sse("error", {"message": "Study AI gặp lỗi khi xử lý. Nội dung chưa hoàn tất chưa được lưu; bạn có thể thử lại."})
         finally:
             _set_ai_status(conversation.id, {"state": "idle"})

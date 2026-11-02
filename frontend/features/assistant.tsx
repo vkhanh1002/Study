@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import { Bot, Check, FileText, MessageCircle, MessageSquarePlus, MoreHorizontal, Pencil, Plus, Send, Sparkles, Square, Trash2, UserRound, X } from "lucide-react";
-import { API_BASE, api, ApiError, authenticatedFetch } from "@/lib/api";
+import { API_BASE, getApiBase, api, ApiError, authenticatedFetch } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import { EmptyState, ErrorNotice, Loading } from "@/components/ui";
 
@@ -95,7 +95,7 @@ export function Assistant() {
 
       let response: Response;
       if (!user) {
-        response = await fetch(`${API_BASE}/chat/guest/messages`, {
+        response = await fetch(`${getApiBase()}/chat/guest/messages`, {
           method: "POST",
           headers: { "Content-Type": "application/json", Accept: "text/event-stream" },
           body: JSON.stringify({ message: prompt }),

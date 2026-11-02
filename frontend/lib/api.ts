@@ -1,4 +1,20 @@
-export const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000/api/v1";
+const defaultApiUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000/api/v1";
+
+export function getApiBase(): string {
+  if (typeof window !== "undefined") {
+    const envUrl = process.env.NEXT_PUBLIC_API_URL;
+    if (envUrl && !envUrl.includes("localhost") && !envUrl.includes("127.0.0.1")) {
+      return envUrl;
+    }
+    const host = window.location.hostname;
+    if (host) {
+      return `${window.location.protocol}//${host}:8000/api/v1`;
+    }
+  }
+  return defaultApiUrl;
+}
+
+export const API_BASE = defaultApiUrl;
 
 export class ApiError extends Error {
   status: number;
@@ -13,7 +29,7 @@ export async function authenticatedFetch(path: string, options: RequestInit = {}
     const headers = new Headers(options.headers);
     if (!formData) headers.set("Content-Type", "application/json");
     if (accessToken) headers.set("Authorization", `Bearer ${accessToken}`);
-    return fetch(`${API_BASE}${path}`, { ...options, headers, cache: "no-store" });
+    return fetch(`${getApiBase()}${path}`, { ...options, headers, cache: "no-store" });
   }
   let response: Response;
   try { response = await send(token); }
@@ -22,7 +38,7 @@ export async function authenticatedFetch(path: string, options: RequestInit = {}
     const refreshToken = window.sessionStorage.getItem("study_refresh_token");
     if (refreshToken) {
       try {
-        const refreshed = await fetch(`${API_BASE}/auth/refresh`, { method: "POST", headers: { Authorization: `Bearer ${refreshToken}` }, cache: "no-store" });
+        const refreshed = await fetch(`${getApiBase()}/auth/refresh`, { method: "POST", headers: { Authorization: `Bearer ${refreshToken}` }, cache: "no-store" });
         if (refreshed.ok) {
           const pair = await refreshed.json();
           window.sessionStorage.setItem("study_access_token", pair.access_token);
