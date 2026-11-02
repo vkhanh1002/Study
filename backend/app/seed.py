@@ -18,6 +18,11 @@ MAJOR_DATA = [
     ("7340301", "Kế toán", "Thông tin kế toán, báo cáo tài chính và kiểm soát nội bộ.", "Khoa Kinh tế", 4, 24000000, 150),
     ("7340201", "Tài chính – Ngân hàng", "Kiến thức về thị trường tài chính, ngân hàng và quản trị rủi ro.", "Khoa Kinh tế", 4, 26000000, 150),
     ("7220201", "Ngôn ngữ Anh", "Phát triển năng lực tiếng Anh và giao tiếp liên văn hóa.", "Khoa Ngoại ngữ", 4, 23000000, 180),
+    ("7340116", "Logistics và Quản lý chuỗi cung ứng", "Chuyên ngành đào tạo quản trị chuỗi cung ứng hàng đầu cả nước.", "Khoa Kinh tế", 4, 28000000, 180),
+    ("7340302", "Kiểm toán", "Cái nôi kiểm toán lớn nhất Việt Nam, định hướng chứng chỉ CPA, ACCA.", "Khoa Kinh tế", 4, 28000000, 200),
+    ("7340122", "Thương mại điện tử", "Kinh doanh số, sàn TMĐT và tiếp thị số đa nền tảng.", "Khoa Kinh tế", 4, 28000000, 160),
+    ("7480108", "Khoa học dữ liệu trong Kinh tế & KD (DSEB)", "Chương trình tiên tiến chuyên sâu AI và Big Data.", "Khoa Công nghệ", 4, 45000000, 100),
+    ("7480107", "Trí tuệ nhân tạo (AI) trong Kinh doanh", "Ứng dụng máy học, mô hình ngôn ngữ và tự động hóa trong quản trị kinh doanh.", "Khoa Công nghệ", 4, 45000000, 100),
 ]
 
 FAQ_DATA = [
@@ -35,7 +40,16 @@ FAQ_DATA = [
     ("Đời sống sinh viên và câu lạc bộ tại NEU ra sao?", "NEU có phong trào sinh viên vô cùng sôi nổi với hơn 40 câu lạc bộ lớn nhỏ (như CLB Nhà Kinh tế trẻ YEC, CLB Kế toán Kiểm toán A&A, CLB Marketing MGC...). Trường có ký túc xá khang trang, sân bóng, hội trường A2 hiện đại và thư viện Phạm Văn Đồng 4 tầng chuẩn quốc tế.", "NEU"),
 ]
 
-STUDENT_GIVEN_NAMES = ["Minh Anh", "Gia Huy", "Phương Linh", "Hoàng Nam", "Thảo Vy", "Quốc Bảo", "Khánh Ngọc", "Tuấn Kiệt", "Hà My", "Đức Anh", "Bảo Trân", "Nhật Minh", "Thanh Tâm", "Quang Vinh", "Ngọc Hà", "Hữu Phước", "Mai Chi", "Trọng Nghĩa", "Yến Nhi", "Đình Khang", "Kim Anh", "Tiến Đạt", "Khánh Linh", "Đăng Khoa", "Thùy Dương", "Minh Quân", "Bích Ngọc", "Hoài An", "Văn Khải", "Hương Giang", "Anh Tuấn", "Ngọc Diệp", "Phúc Hưng", "Thanh Trúc", "Bảo Long", "Thu Trang", "Duy Khánh", "Quỳnh Mai", "Thành Đạt", "Như Ý"]
+STUDENT_GIVEN_NAMES = [
+    "Minh Anh", "Gia Huy", "Phương Linh", "Hoàng Nam", "Thảo Vy", "Quốc Bảo", "Khánh Ngọc", "Tuấn Kiệt",
+    "Hà My", "Đức Anh", "Bảo Trân", "Nhật Minh", "Thanh Tâm", "Quang Vinh", "Ngọc Hà", "Hữu Phước",
+    "Mai Chi", "Trọng Nghĩa", "Yến Nhi", "Đình Khang", "Kim Anh", "Tiến Đạt", "Khánh Linh", "Đăng Khoa",
+    "Thùy Dương", "Minh Quân", "Bích Ngọc", "Hoài An", "Văn Khải", "Hương Giang", "Anh Tuấn", "Ngọc Diệp",
+    "Phúc Hưng", "Thanh Trúc", "Bảo Long", "Thu Trang", "Duy Khánh", "Quỳnh Mai", "Thành Đạt", "Như Ý",
+    "Bảo Châu", "Gia Bảo", "Phương Anh", "Huy Hoàng", "Bích Trâm", "Hải Đăng", "Cẩm Ly", "Việt Dũng",
+    "Lan Hương", "Hồng Phúc", "Thục Quyên", "Mạnh Hùng", "Ánh Dương", "Thanh Phong", "Khánh Vy", "Chí Thiện",
+    "Yến Trang", "Tấn Phát", "Thảo My", "Đức Huy", "Kiều Oanh", "Hoàng Long", "Trúc Mai", "Quốc Anh"
+]
 STUDENT_FAMILY_NAMES = ["Nguyễn", "Trần", "Lê", "Phạm", "Hoàng", "Huỳnh", "Phan", "Vũ", "Võ", "Đặng", "Bùi", "Đỗ", "Hồ", "Ngô", "Dương"]
 SAMPLE_ADDRESSES = ["Ba Đình, Hà Nội", "Cầu Giấy, Hà Nội", "Hải Châu, Đà Nẵng", "Ninh Kiều, Cần Thơ", "Quận 3, TP. Hồ Chí Minh", "Thủ Đức, TP. Hồ Chí Minh", "Biên Hòa, Đồng Nai", "Thành phố Huế"]
 
@@ -88,32 +102,134 @@ def seed_data() -> None:
         support_user = users["support@study.edu.vn"]
         db.flush()
 
-        if (not db.scalar(select(Student.id).where(Student.student_number == "STU20260001"))
-                and not db.scalar(select(Student.id).where(Student.user_id == student_user.id))):
-            db.add(Student(user_id=student_user.id, student_number="STU20260001", full_name=student_user.full_name,
-                           email=student_user.email, phone="0900000001", major_id=majors["Công nghệ thông tin"].id,
-                           cohort="2026", class_name="CNTT-K26A", study_status="Đang học",
-                           enrollment_date=date(2026, 9, 5), is_demo=True))
+        # 1. Main demo student: Trần Minh Khoa
+        primary_student = db.scalar(select(Student).where(Student.student_number == "STU20260001"))
+        khoa_emergency = {
+            "parent_name": "Trần Văn Hùng",
+            "parent_phone": "0912345678",
+            "relationship": "Bố",
+            "citizen_id": "001202018899",
+            "citizen_issued_date": "15/04/2021",
+            "citizen_issued_place": "Cục Cảnh sát QLHC về TTXH",
+            "ethnic": "Kinh",
+            "religion": "Không",
+            "hometown": "Nam Định",
+            "personal_email": "khoa.tran2004@gmail.com",
+            "advisor_name": "TS. Nguyễn Hoàng Nam",
+            "advisor_email": "namnh@neu.edu.vn",
+            "faculty": "Khoa Công nghệ thông tin",
+            "program_type": "Đại học Chính quy (Hệ Chuẩn)",
+            "credits_accumulated": 78,
+            "credits_total": 130,
+            "credits_general": 32,
+            "credits_foundation": 28,
+            "credits_specialized": 18,
+            "gpa_4": 3.48,
+            "gpa_10": 8.35,
+            "academic_rank": "Giỏi",
+            "training_points": 88,
+            "training_rank": "Tốt",
+            "english_cert": "IELTS 6.5 (Đạt Chuẩn đầu ra)",
+            "it_cert": "MOS Word, Excel (Đạt Chuẩn đầu ra)",
+            "national_defense": "Đã hoàn thành (Loại Giỏi)",
+            "physical_education": "Đã tích lũy đủ 4/4 học phần",
+            "awards": [
+                "Học bổng Khuyến khích học tập Loại Giỏi Học kỳ 1 (2025-2026)",
+                "Giải Ba Cuộc thi Nghiên cứu Khoa học Sinh viên cấp Khoa",
+                "Sinh viên 5 Tốt cấp Trường năm học 2024-2025",
+                "Thành viên tích cực CLB Nhà Kinh tế trẻ NEU (YEC)"
+            ]
+        }
+        if not primary_student:
+            if not db.scalar(select(Student.id).where(Student.user_id == student_user.id)):
+                db.add(Student(user_id=student_user.id, student_number="STU20260001", full_name=student_user.full_name,
+                               email=student_user.email, phone="0900000001", major_id=majors["Công nghệ thông tin"].id,
+                               cohort="2026", class_name="CNTT-K26A", study_status="Đang học",
+                               date_of_birth=date(2004, 5, 18), gender="Nam",
+                               address="Số 207 Giải Phóng, Phường Đồng Tâm, Quận Hai Bà Trưng, Hà Nội",
+                               emergency_contact=khoa_emergency,
+                               enrollment_date=date(2026, 9, 5), is_demo=True))
+        else:
+            primary_student.date_of_birth = date(2004, 5, 18)
+            primary_student.gender = "Nam"
+            primary_student.address = "Số 207 Giải Phóng, Phường Đồng Tâm, Quận Hai Bà Trưng, Hà Nội"
+            primary_student.emergency_contact = khoa_emergency
 
-        # Stable unique codes make this additive seed safe to rerun. Existing rows are never updated.
+        # 2. Additive seed for rich student records
+        advisors = [
+            ("TS. Nguyễn Hoàng Nam", "namnh@neu.edu.vn"),
+            ("PGS.TS. Trần Thị Bích", "bicht@neu.edu.vn"),
+            ("TS. Lê Quốc Trung", "trunglq@neu.edu.vn"),
+            ("ThS. Phạm Mai Anh", "anhpm@neu.edu.vn"),
+            ("PGS.TS. Đỗ Thanh Tùng", "tungdt@neu.edu.vn")
+        ]
+        all_majors = list(majors.values())
         for index, given_name in enumerate(STUDENT_GIVEN_NAMES, start=2):
             cohort_year = (2022, 2023, 2024, 2025, 2026)[index % 5]
             cohort = str(cohort_year)
             student_number = f"STU{cohort}{index:04d}"
             sample_email = f"sv{index:02d}@example.com"
-            if (db.scalar(select(Student.id).where(Student.student_number == student_number))
-                    or db.scalar(select(Student.id).where(Student.email == sample_email))):
-                continue
-            major = list(majors.values())[(index - 2) % len(majors)]
+            major = all_majors[(index - 2) % len(all_majors)]
             family = STUDENT_FAMILY_NAMES[(index * 3) % len(STUDENT_FAMILY_NAMES)]
             full_name = f"{family} {given_name}"
             study_status = "Tạm nghỉ" if index % 13 == 0 else ("Đã tốt nghiệp" if cohort_year < 2023 else ("Bảo lưu" if index % 11 == 0 else "Đang học"))
+            adv_name, adv_email = advisors[index % len(advisors)]
+            gpa = round(2.8 + (index * 7 % 13) * 0.09, 2)
+            gpa_10 = round(gpa * 2.3 + 0.3, 1)
+            rank = "Xuất sắc" if gpa >= 3.6 else ("Giỏi" if gpa >= 3.2 else ("Khá" if gpa >= 2.5 else "Trung bình"))
+            credits_acc = min(130, 28 + (2026 - cohort_year) * 26 + (index % 10))
+            student_meta = {
+                "parent_name": f"{family} Văn {['Hải', 'Thành', 'Tuấn', 'Dũng', 'Minh'][index % 5]}",
+                "parent_phone": f"0912{index:06d}",
+                "relationship": "Phụ huynh",
+                "citizen_id": f"00120{index % 4}{index:06d}",
+                "citizen_issued_date": "10/06/2021",
+                "citizen_issued_place": "Cục Cảnh sát QLHC về TTXH",
+                "ethnic": "Kinh",
+                "religion": "Không",
+                "hometown": ("Hà Nội", "Hải Phòng", "Nam Định", "Đà Nẵng", "Nghệ An", "Thanh Hóa", "TP. Hồ Chí Minh")[index % 7],
+                "personal_email": f"{given_name.lower().replace(' ', '')}{index}@gmail.com",
+                "advisor_name": adv_name,
+                "advisor_email": adv_email,
+                "faculty": major.faculty.name if hasattr(major, "faculty") and major.faculty else "Khoa Kinh tế",
+                "program_type": ("Chương trình Tiên tiến AEP", "Chương trình Chuẩn", "Chất lượng cao POHE")[index % 3],
+                "credits_accumulated": credits_acc,
+                "credits_total": 130,
+                "credits_general": min(32, int(credits_acc * 0.35)),
+                "credits_foundation": min(36, int(credits_acc * 0.4)),
+                "credits_specialized": max(0, credits_acc - min(32, int(credits_acc * 0.35)) - min(36, int(credits_acc * 0.4))),
+                "gpa_4": gpa,
+                "gpa_10": gpa_10,
+                "academic_rank": rank,
+                "training_points": 75 + (index * 5 % 24),
+                "training_rank": "Tốt" if (75 + (index * 5 % 24)) >= 80 else "Khá",
+                "english_cert": ("IELTS 7.0 (Đạt)", "IELTS 6.5 (Đạt)", "TOEIC 750 (Đạt)", "Chưa nộp CĐR")[index % 4],
+                "it_cert": ("MOS Word & Excel (Đạt)", "IC3 GS5 (Đạt)", "Chưa nộp CĐR")[index % 3],
+                "national_defense": "Đã hoàn thành",
+                "physical_education": f"Đã tích lũy {min(4, 1 + (2026 - cohort_year))}/4 học phần",
+                "awards": [
+                    f"Khen thưởng thành tích học tập Khóa {cohort}",
+                    f"Thành viên CLB Sinh viên NEU"
+                ] if gpa >= 3.2 else []
+            }
+            
+            existing = db.scalar(select(Student).where(Student.student_number == student_number))
+            if existing:
+                if not existing.emergency_contact:
+                    existing.emergency_contact = student_meta
+                if not existing.date_of_birth:
+                    existing.date_of_birth = date(2002 + index % 5, index % 12 + 1, index % 27 + 1)
+                if not existing.address:
+                    existing.address = SAMPLE_ADDRESSES[index % len(SAMPLE_ADDRESSES)]
+                continue
+
             db.add(Student(student_number=student_number, full_name=full_name,
                            email=sample_email, phone=f"09{index % 10}{index:07d}",
                            date_of_birth=date(2002 + index % 5, index % 12 + 1, index % 27 + 1),
                            gender=("Nam", "Nữ", "Khác")[index % 3], address=SAMPLE_ADDRESSES[index % len(SAMPLE_ADDRESSES)],
                            major_id=major.id, cohort=cohort, class_name=f"{major.code[-3:]}-K{cohort[-2:]}{chr(65 + index % 3)}",
-                           study_status=study_status, enrollment_date=date(cohort_year, 9, 5), is_demo=True))
+                           study_status=study_status, enrollment_date=date(cohort_year, 9, 5),
+                           emergency_contact=student_meta, is_demo=True))
 
         lecturer_names = ["Nguyễn Thị Hồng Nhung", "Trần Quốc Bảo", "Lê Minh Phương", "Phạm Văn Thành", "Vũ Thu Hà", "Đặng Hoàng Long", "Bùi Ngọc Anh", "Đỗ Thanh Tùng", "Hồ Mỹ Linh", "Ngô Quang Huy", "Dương Thị Mai", "Hoàng Đức Thịnh"]
         faculties_by_name = {faculty.name: faculty for faculty in faculties.values()}
