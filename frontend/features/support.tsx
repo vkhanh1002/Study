@@ -10,7 +10,6 @@ import { useAuth } from "@/lib/auth-context";
 import { DemoTag, EmptyState, ErrorNotice, Loading, PageTitle, StatusBadge } from "@/components/ui";
 
 import { StudentHandbook } from "./student-handbook";
-import { StudentServices } from "./student-services";
 import { Bot, Sparkles } from "lucide-react";
 
 type FAQ = { id: string; question: string; answer: string; category: string };
@@ -25,7 +24,6 @@ const staffRoles = ["super_admin", "support_staff"];
 export function Support() {
   const { user } = useAuth();
   const isStaff = Boolean(user && staffRoles.includes(user.role));
-  const [hubTab, setHubTab] = useState<"handbook" | "services">("handbook");
   const [faqs, setFaqs] = useState<FAQ[]>([]); const [tickets, setTickets] = useState<Ticket[]>([]);
   const [agents, setAgents] = useState<Agent[]>([]); const [stats, setStats] = useState<SupportStats | null>(null);
   const [loading, setLoading] = useState(true); const [error, setError] = useState(""); const [success, setSuccess] = useState("");
@@ -104,45 +102,10 @@ export function Support() {
     <PageTitle
       eyebrow="MODULE M12 · HỖ TRỢ NGƯỜI HỌC"
       title={isStaff ? "Quản lý yêu cầu hỗ trợ" : "Trung tâm hỗ trợ người học"}
-      description={isStaff ? "Tiếp nhận, phân công và theo dõi trao đổi với người học." : "Cẩm nang tân sinh viên, tra cứu hệ sinh thái NEU Study, phát sinh biểu mẫu thủ tục và công cụ tính điểm GPA tín chỉ."}
+      description={isStaff ? "Tiếp nhận, phân công và theo dõi trao đổi với người học." : "Cẩm nang tân sinh viên, quy chế đào tạo tín chỉ và tra cứu hệ sinh thái số NEU Study."}
       action={
         <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
-          {!isStaff && (
-            <div style={{ display: "inline-flex", background: "#e2e8f0", padding: "3px", borderRadius: "10px" }}>
-              <button
-                onClick={() => setHubTab("handbook")}
-                style={{
-                  padding: "6px 14px",
-                  borderRadius: "8px",
-                  fontSize: "13px",
-                  fontWeight: 650,
-                  border: "none",
-                  cursor: "pointer",
-                  background: hubTab === "handbook" ? "#ffffff" : "transparent",
-                  color: hubTab === "handbook" ? "#1d4ed8" : "#475569",
-                  boxShadow: hubTab === "handbook" ? "0 2px 4px rgba(0,0,0,0.06)" : "none"
-                }}
-              >
-                1. Cẩm nang & Tra cứu Website
-              </button>
-              <button
-                onClick={() => setHubTab("services")}
-                style={{
-                  padding: "6px 14px",
-                  borderRadius: "8px",
-                  fontSize: "13px",
-                  fontWeight: 650,
-                  border: "none",
-                  cursor: "pointer",
-                  background: hubTab === "services" ? "#ffffff" : "transparent",
-                  color: hubTab === "services" ? "#1d4ed8" : "#475569",
-                  boxShadow: hubTab === "services" ? "0 2px 4px rgba(0,0,0,0.06)" : "none"
-                }}
-              >
-                2. Dịch vụ Biểu mẫu & Tiện ích Học vụ
-              </button>
-            </div>
-          )}
+
           {!isStaff && (
             <a href="/assistant" className="button button-primary" style={{ display: "inline-flex", alignItems: "center", gap: "6px", textDecoration: "none" }}>
               <Sparkles size={16} /> Hỏi NEU Study AI
@@ -158,7 +121,7 @@ export function Support() {
     />
 
     {!isStaff ? (
-      hubTab === "handbook" ? <StudentHandbook /> : <StudentServices />
+      <StudentHandbook />
     ) : (
       <>
         {!isStaff && (

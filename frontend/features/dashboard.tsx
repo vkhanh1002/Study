@@ -568,8 +568,8 @@ export function Dashboard() {
                   <CircleHelp size={18} />
                 </span>
                 <span>
-                  <strong>Cẩm nang & Biểu mẫu NEU</strong>
-                  <small>Cổng dịch vụ sinh viên M12</small>
+                  <strong>Cẩm nang sinh viên NEU</strong>
+                  <small>Cẩm nang & tra cứu M12</small>
                 </span>
                 <ArrowRight size={16} />
               </Link>
