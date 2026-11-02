@@ -32,13 +32,14 @@ FRONTEND_ORIGINS = [
     "http://127.0.0.1:3000",                        # Next.js Frontend (IP)
     "http://localhost:5173",                        # Vite / React (Dev)
     "https://study.vercel.app",                     # Vercel Production
-    "https://frontend-one-tawny-98.vercel.app",     # Vercel Frontend chính thức
+    "https://frontend-one-tawny-98.vercel.app",     # Vercel Frontend bạn của bạn
+    "https://study-eta-gray.vercel.app",             # Vercel Frontend của bạn
 ]
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=FRONTEND_ORIGINS + [o for o in settings.allowed_origins if o not in FRONTEND_ORIGINS],
-    allow_origin_regex=r"^http://(localhost|127\.0\.0\.1)(:\d+)?$",
+    allow_origin_regex=r"^(http://(localhost|127\.0\.0\.1)(:\d+)?|https://[a-zA-Z0-9-]+\.vercel\.app)$",
     allow_credentials=True,         # Cho phép gửi cookie / Authorization token
     allow_methods=["*"],            # GET, POST, PUT, DELETE, OPTIONS...
     allow_headers=["*"],            # Authorization, Content-Type, Accept...
