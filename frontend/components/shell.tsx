@@ -73,13 +73,8 @@ export function Shell({ children }: { children: React.ReactNode }) {
   const visibleNavigation = navigation
     .map((group) => ({
       ...group,
-      links: group.links
-        .filter((link) => !link.roles || link.roles.includes(user?.role ?? ""))
-        .map((link) =>
-          link.href === "/support" && ["super_admin", "support_staff"].includes(user?.role ?? "")
-            ? { ...link, label: "Danh sách yêu cầu" }
-            : link
-        ),
+      links: group.links.filter((link) => !link.roles || link.roles.includes(user?.role ?? ""))
+        ,
     }))
     .filter((group) => group.links.length > 0);
 

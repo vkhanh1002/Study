@@ -4,13 +4,12 @@ import { useEffect, useMemo, useState } from "react";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
-import { ArrowRight, ChevronDown, CircleHelp, Download, MessageCircle, Paperclip, Search, Send, TicketCheck } from "lucide-react";
+import { ArrowRight, BookOpen, ChevronDown, CircleHelp, Download, MessageCircle, Paperclip, Search, Send, Sparkles, TicketCheck } from "lucide-react";
 import { API_BASE, api, Ticket } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import { DemoTag, EmptyState, ErrorNotice, Loading, PageTitle, StatusBadge } from "@/components/ui";
 
 import { StudentHandbook } from "./student-handbook";
-import { Bot, Sparkles } from "lucide-react";
 
 type FAQ = { id: string; question: string; answer: string; category: string };
 type Agent = { id: string; full_name: string; email: string };
@@ -28,6 +27,7 @@ export function Support() {
   const [agents, setAgents] = useState<Agent[]>([]); const [stats, setStats] = useState<SupportStats | null>(null);
   const [loading, setLoading] = useState(true); const [error, setError] = useState(""); const [success, setSuccess] = useState("");
   const [formOpen, setFormOpen] = useState(false); const [activeTicket, setActiveTicket] = useState<string | null>(null); const [busyTicket, setBusyTicket] = useState("");
+  const [mainTab, setMainTab] = useState<"handbook" | "tickets">("handbook");
   const [query, setQuery] = useState(""); const [category, setCategory] = useState(""); const [status, setStatus] = useState("");
 
   async function loadTickets() {
@@ -101,26 +101,74 @@ export function Support() {
   return <div className="module-page">
     <PageTitle
       eyebrow="MODULE M12 · HỖ TRỢ NGƯỜI HỌC"
-      title={isStaff ? "Quản lý yêu cầu hỗ trợ" : "Trung tâm hỗ trợ người học"}
-      description={isStaff ? "Tiếp nhận, phân công và theo dõi trao đổi với người học." : "Cẩm nang tân sinh viên, quy chế đào tạo tín chỉ và tra cứu hệ sinh thái số NEU Study."}
+      title="Trung tâm hỗ trợ người học NEU Study"
+      description="Cẩm nang sinh viên, quy chế đào tạo tín chỉ, tra cứu 40+ website hệ sinh thái số NEU và hệ thống một cửa tiếp nhận yêu cầu."
       action={
-        <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
-
-          {!isStaff && (
-            <a href="/assistant" className="button button-primary" style={{ display: "inline-flex", alignItems: "center", gap: "6px", textDecoration: "none" }}>
-              <Sparkles size={16} /> Hỏi NEU Study AI
-            </a>
-          )}
-          {isStaff && user && (
-            <button className="button button-primary" onClick={() => setFormOpen(true)}>
-              <MessageCircle size={17} /> Tạo yêu cầu
+        <div style={{ display: "flex", gap: "10px", alignItems: "center", flexWrap: "wrap" }}>
+          <a href="/assistant" className="button button-secondary" style={{ display: "inline-flex", alignItems: "center", gap: "6px", textDecoration: "none" }}>
+            <Sparkles size={16} /> Hỏi NEU Study AI
+          </a>
+          {user && (
+            <button className="button button-primary" onClick={() => { setMainTab("tickets"); setFormOpen(true); }}>
+              <MessageCircle size={17} /> Tạo yêu cầu hỗ trợ
             </button>
           )}
         </div>
       }
     />
 
-    {!isStaff ? (
+    <div className="support-nav-tabs" style={{ display: "flex", gap: "8px", borderBottom: "1px solid #e2e8f0", marginBottom: "20px", background: "#f8fafc", padding: "6px 8px 0", borderRadius: "10px 10px 0 0" }}>
+      <button
+        type="button"
+        onClick={() => setMainTab("handbook")}
+        style={{
+          display: "inline-flex",
+          alignItems: "center",
+          gap: "8px",
+          padding: "10px 18px",
+          fontSize: "14px",
+          fontWeight: 600,
+          border: "none",
+          borderBottom: mainTab === "handbook" ? "2px solid #0284c7" : "2px solid transparent",
+          color: mainTab === "handbook" ? "#0284c7" : "#64748b",
+          background: mainTab === "handbook" ? "#ffffff" : "transparent",
+          borderRadius: "8px 8px 0 0",
+          cursor: "pointer",
+          transition: "all 0.15s ease"
+        }}
+      >
+        <BookOpen size={16} /> Cẩm nang sinh viên & Tra cứu NEU
+      </button>
+
+      <button
+        type="button"
+        onClick={() => setMainTab("tickets")}
+        style={{
+          display: "inline-flex",
+          alignItems: "center",
+          gap: "8px",
+          padding: "10px 18px",
+          fontSize: "14px",
+          fontWeight: 600,
+          border: "none",
+          borderBottom: mainTab === "tickets" ? "2px solid #0284c7" : "2px solid transparent",
+          color: mainTab === "tickets" ? "#0284c7" : "#64748b",
+          background: mainTab === "tickets" ? "#ffffff" : "transparent",
+          borderRadius: "8px 8px 0 0",
+          cursor: "pointer",
+          transition: "all 0.15s ease"
+        }}
+      >
+        <TicketCheck size={16} /> {isStaff ? "Quản lý yêu cầu hỗ trợ (Cán bộ)" : "Phiếu yêu cầu của tôi (Một cửa)"}
+        {tickets.length > 0 && (
+          <span style={{ fontSize: "11px", background: mainTab === "tickets" ? "#e0f2fe" : "#e2e8f0", color: mainTab === "tickets" ? "#0369a1" : "#475569", padding: "1px 7px", borderRadius: "10px", marginLeft: "4px" }}>
+            {tickets.length}
+          </span>
+        )}
+      </button>
+    </div>
+
+    {mainTab === "handbook" ? (
       <StudentHandbook />
     ) : (
       <>
