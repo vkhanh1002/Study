@@ -3,11 +3,12 @@ const defaultApiUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000/
 export function getApiBase(): string {
   if (typeof window !== "undefined") {
     const envUrl = process.env.NEXT_PUBLIC_API_URL;
-    if (envUrl && !envUrl.includes("localhost") && !envUrl.includes("127.0.0.1")) {
-      return envUrl;
+    if (envUrl) {
+      return envUrl.endsWith("/") ? envUrl.slice(0, -1) : envUrl;
     }
     const host = window.location.hostname;
-    if (host) {
+    // Chỉ tự động thêm port :8000 khi chạy dưới môi trường cục bộ (localhost / 127.0.0.1 / IP LAN)
+    if (host === "localhost" || host === "127.0.0.1" || host.startsWith("192.168.") || host.startsWith("10.") || host.endsWith(".local")) {
       return `${window.location.protocol}//${host}:8000/api/v1`;
     }
   }

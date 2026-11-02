@@ -96,17 +96,26 @@ async def guest_chat_stream(
             })
         return StreamingResponse(auth_required_stream(), media_type="text/event-stream")
 
-    sources = await retrieve_context(db, question, audience="tuyen_sinh", limit=5)
+    try:
+        sources = await retrieve_context(db, question, audience="tuyen_sinh", limit=5)
+    except Exception:
+        logger.exception("Guest chat retrieval failed")
+        db.rollback()
+        sources = []
 
     # Nếu độ liên quan rất thấp (không có nguồn nào điểm cao), ghi nhận vào unanswered_questions
     max_score = max((s.get("score", 0) for s in sources), default=0)
     if max_score < 0.2:
-        db.add(UnansweredQuestion(
-            question=question,
-            user_type="guest",
-            resolved=False
-        ))
-        db.commit()
+        try:
+            db.add(UnansweredQuestion(
+                question=question,
+                user_type="guest",
+                resolved=False
+            ))
+            db.commit()
+        except Exception:
+            logger.exception("Could not record unanswered guest question")
+            db.rollback()
 
     async def guest_event_stream():
         output = []

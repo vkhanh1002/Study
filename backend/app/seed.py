@@ -5,6 +5,7 @@ from sqlalchemy import select
 from app.core.database import Base, SessionLocal, enable_vector_extension, engine
 from app.core.security import hash_password
 from app.models import Applicant, FAQ, Faculty, Major, Personnel, Student, StudyTask, SupportTicket, User
+from app.ai.seed_admission_data import seed_admission_and_departments
 
 
 MAJOR_DATA = [
@@ -202,6 +203,9 @@ def seed_data() -> None:
             if not db.scalar(select(FAQ.id).where(FAQ.question == question)):
                 db.add(FAQ(question=question, answer=answer, category=category, is_published=True))
         db.commit()
+
+        # Tự động nạp dữ liệu phòng ban, học phí, điểm chuẩn và FAQ chi tiết cho NEU Study
+        seed_admission_and_departments(db)
     finally:
         db.close()
 

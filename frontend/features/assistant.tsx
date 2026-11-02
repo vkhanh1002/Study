@@ -178,8 +178,13 @@ export function Assistant() {
       if (!accumulatedText.trim()) {
         setMessages(current => current.filter(message => message.id !== pendingId));
       }
-      if (controller.signal.aborted) setError("Đã dừng tạo câu trả lời. Nội dung chưa hoàn tất không được lưu.");
-      else setError(reason instanceof Error ? reason.message : "Không gửi được tin nhắn.");
+      if (controller.signal.aborted) {
+        setError("Đã dừng tạo câu trả lời. Nội dung chưa hoàn tất không được lưu.");
+      } else if (reason instanceof TypeError && String(reason.message).toLowerCase().includes("fetch")) {
+        setError(`Không thể kết nối máy chủ API (${getApiBase()}). Vui lòng kiểm tra biến môi trường NEXT_PUBLIC_API_URL trên Vercel hoặc đảm bảo Backend Cloud đang hoạt động.`);
+      } else {
+        setError(reason instanceof Error ? reason.message : "Không gửi được tin nhắn.");
+      }
     } finally {
       requestController.current = null;
       setThinkingStatus("Đang truy xuất tài liệu liên quan…");
