@@ -16,14 +16,18 @@ Khi database và backend báo `healthy`, frontend báo `running`, mở giao di�
 
 Nếu trước đó backend liên tục báo `relation "users" does not exist` hoặc unhealthy, hãy để Docker Desktop chạy rồi build lại image với code mới bằng `docker compose up --build -d`. Kiểm tra `docker compose ps` và `docker compose logs --tail=100 backend`; không dùng `docker compose down -v` vì tùy chọn `-v` sẽ xóa volume cơ sở dữ liệu.
 
-Đăng nhập demo:
+## Tài khoản đăng nhập demo (3 vai trò chuẩn)
 
-| Vai trò | Email | Mật khẩu |
-| --- | --- | --- |
-| Super Admin | `admin@study.edu.vn` | `StudyDemo2026!` |
-| Nhân viên tuyển sinh | `admissions@study.edu.vn` | `StudyDemo2026!` |
-| Sinh viên | `student@study.edu.vn` | `StudyDemo2026!` |
-| Nhân viên hỗ trợ | `support@study.edu.vn` | `StudyDemo2026!` |
+Hệ thống tuân thủ nghiêm ngặt 3 vai trò tài khoản:
+
+| Vai trò | Email | Mật khẩu | Phạm vi quyền hạn |
+| --- | --- | --- | --- |
+| **ADMIN** | dmin@study.edu.vn | StudyDemo2026! | Quản lý toàn bộ 3 module: Tuyển sinh, Nhân sự, Hỗ trợ người học, Quản lý tài khoản, Danh mục khoa/ngành |
+| **GIANG_VIEN** | giangvien@study.edu.vn | StudyDemo2026! | Cổng giảng viên (/personnel/me), cập nhật hồ sơ chờ duyệt, tải văn bằng/chứng chỉ, cảnh báo hợp đồng sắp hết hạn (<60 ngày), xử lý đơn được giao |
+| **SINH_VIEN** | sinhvien@study.edu.vn | StudyDemo2026! | Cổng sinh viên (/support), checklist 11 bước nhập học, nộp 4 loại đơn trực tuyến, tra cứu lịch học/lịch thi, đánh giá 1-5 sao |
+| **Thí sinh (Khách)** | *Không cần đăng nhập* | — | Tra cứu ngành, tính điểm xét tuyển (TS3), nộp hồ sơ online CCCD + 3 nguyện vọng (TS4), tra cứu kết quả (TS5), nộp bổ sung hồ sơ (TS6), danh bạ giảng viên (TS7) |
+
+*(Ghi chú: Các tài khoản cũ student@study.edu.vn, dmissions@study.edu.vn, support@study.edu.vn vẫn đăng nhập được với vai trò tương ứng nhờ cơ chế role normalization).*
 
 Thay mật khẩu và `STUDY_SECRET_KEY` trước khi dùng ở môi trường thật. AI mặc định chọn Groq (`AI_PROVIDER=groq`, model `openai/gpt-oss-120b`) và dùng Gemini (`gemini-3.8-flash`) làm dự phòng. Để bật Groq:
 

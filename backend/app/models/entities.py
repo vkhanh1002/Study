@@ -66,16 +66,26 @@ class Notification(TimestampMixin, Base):
 class Applicant(TimestampMixin, Base):
     __tablename__ = "applicants"
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    application_code: Mapped[str] = mapped_column(String(30), default="", index=True, nullable=False)
+    identity_card: Mapped[str] = mapped_column(String(20), default="", index=True, nullable=False)
     email: Mapped[str] = mapped_column(String(255), index=True, nullable=False)
     full_name: Mapped[str] = mapped_column(String(180), nullable=False)
     phone: Mapped[str] = mapped_column(String(40), default="", nullable=False)
     date_of_birth: Mapped[date | None] = mapped_column(Date, nullable=True)
     address: Mapped[str] = mapped_column(String(500), default="", nullable=False)
     desired_major_id: Mapped[str] = mapped_column(ForeignKey("majors.id"), index=True, nullable=False)
+    desired_major_2_id: Mapped[str | None] = mapped_column(ForeignKey("majors.id"), nullable=True)
+    desired_major_3_id: Mapped[str | None] = mapped_column(ForeignKey("majors.id"), nullable=True)
     admission_method: Mapped[str] = mapped_column(String(100), default="Học bạ (demo)", nullable=False)
+    priority_score: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
+    total_score: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
+    attachments: Mapped[list] = mapped_column(JSON, default=list, nullable=False)
     status: Mapped[str] = mapped_column(String(40), default="Mới tiếp nhận", index=True, nullable=False)
+    status_note: Mapped[str] = mapped_column(Text, default="", nullable=False)
     student_id: Mapped[str | None] = mapped_column(ForeignKey("students.id"), nullable=True, unique=True)
-    major: Mapped[Major] = relationship()
+    major: Mapped[Major] = relationship(foreign_keys=[desired_major_id])
+    major_2: Mapped[Major | None] = relationship(foreign_keys=[desired_major_2_id])
+    major_3: Mapped[Major | None] = relationship(foreign_keys=[desired_major_3_id])
 
 
 class Student(TimestampMixin, Base):
@@ -108,6 +118,7 @@ class Personnel(TimestampMixin, Base):
         Index("ix_personnel_type_status", "kind", "work_status"),
     )
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    user_id: Mapped[str | None] = mapped_column(ForeignKey("users.id"), nullable=True, unique=True)
     code: Mapped[str] = mapped_column(String(30), unique=True, index=True, nullable=False)
     kind: Mapped[str] = mapped_column(String(30), index=True, nullable=False)  # lecturer | employee
     full_name: Mapped[str] = mapped_column(String(180), index=True, nullable=False)
@@ -125,9 +136,13 @@ class Personnel(TimestampMixin, Base):
     position: Mapped[str] = mapped_column(String(160), default="", nullable=False)
     start_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     work_status: Mapped[str] = mapped_column(String(40), default="Đang công tác", index=True, nullable=False)
+    profile_status: Mapped[str] = mapped_column(String(30), default="DA_DUYET", index=True, nullable=False)
+    rejection_reason: Mapped[str] = mapped_column(String(500), default="", nullable=False)
+    pending_updates: Mapped[dict] = mapped_column(JSON, default=dict, nullable=False)
     notes: Mapped[str] = mapped_column(Text, default="", nullable=False)
     is_demo: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     faculty: Mapped[Faculty | None] = relationship()
+    user: Mapped[User | None] = relationship()
 
 
 class SupportTicket(TimestampMixin, Base):
@@ -357,5 +372,114 @@ class KbAuditLog(TimestampMixin, Base):
     entity_type: Mapped[str] = mapped_column(String(50), nullable=False)  # document, score, program, tuition, faq
     entity_id: Mapped[str] = mapped_column(String(36), nullable=False)
     details: Mapped[dict] = mapped_column(JSON, default=dict, nullable=False)
+
+
+class StatusHistory(TimestampMixin, Base):
+    """Audit trail for entity status changes (Applicants, Personnel, Degrees, Requests)."""
+    __tablename__ = "status_histories"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    entity_type: Mapped[str] = mapped_column(String(50), index=True, nullable=False)
+    entity_id: Mapped[str] = mapped_column(String(36), index=True, nullable=False)
+    old_status: Mapped[str] = mapped_column(String(50), default="", nullable=False)
+    new_status: Mapped[str] = mapped_column(String(50), nullable=False)
+    changed_by: Mapped[str] = mapped_column(String(100), default="Hệ thống", nullable=False)
+    reason: Mapped[str] = mapped_column(Text, default="", nullable=False)
+
+
+class PersonnelDegree(TimestampMixin, Base):
+    """Degrees and professional certificates of lecturers."""
+    __tablename__ = "personnel_degrees"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    personnel_id: Mapped[str] = mapped_column(ForeignKey("personnel.id", ondelete="CASCADE"), index=True, nullable=False)
+    title: Mapped[str] = mapped_column(String(200), nullable=False)
+    degree_type: Mapped[str] = mapped_column(String(60), default="Bằng đại học", nullable=False)
+    issuing_institution: Mapped[str] = mapped_column(String(200), nullable=False)
+    issue_year: Mapped[int] = mapped_column(Integer, nullable=False)
+    file_url: Mapped[str] = mapped_column(String(500), default="", nullable=False)
+    status: Mapped[str] = mapped_column(String(30), default="CHO_DUYET", index=True, nullable=False)  # CHO_DUYET, DA_DUYET, TU_CHOI
+    rejection_reason: Mapped[str] = mapped_column(String(500), default="", nullable=False)
+    personnel: Mapped[Personnel] = relationship()
+
+
+class PersonnelContract(TimestampMixin, Base):
+    """Employment contracts with automatic 60-day expiry warnings."""
+    __tablename__ = "personnel_contracts"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    personnel_id: Mapped[str] = mapped_column(ForeignKey("personnel.id", ondelete="CASCADE"), index=True, nullable=False)
+    contract_number: Mapped[str] = mapped_column(String(50), unique=True, index=True, nullable=False)
+    contract_type: Mapped[str] = mapped_column(String(100), default="Hợp đồng lao động xác định thời hạn", nullable=False)
+    start_date: Mapped[date] = mapped_column(Date, nullable=False)
+    end_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    status: Mapped[str] = mapped_column(String(40), default="Hiệu lực", index=True, nullable=False)
+    salary_rate: Mapped[str] = mapped_column(String(100), default="", nullable=False)
+    file_url: Mapped[str] = mapped_column(String(500), default="", nullable=False)
+    notes: Mapped[str] = mapped_column(Text, default="", nullable=False)
+    personnel: Mapped[Personnel] = relationship()
+
+
+class AdmissionChecklistProgress(TimestampMixin, Base):
+    """11-step admission procedure checklist progress for freshmen."""
+    __tablename__ = "admission_checklist_progress"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    student_id: Mapped[str] = mapped_column(ForeignKey("students.id", ondelete="CASCADE"), index=True, nullable=False)
+    step_number: Mapped[int] = mapped_column(Integer, nullable=False)
+    step_title: Mapped[str] = mapped_column(String(200), nullable=False)
+    step_description: Mapped[str] = mapped_column(Text, default="", nullable=False)
+    status: Mapped[str] = mapped_column(String(30), default="CHUA_HOAN_THANH", index=True, nullable=False)  # CHUA_HOAN_THANH, CHO_XAC_NHAN, DA_HOAN_THANH
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    notes: Mapped[str] = mapped_column(Text, default="", nullable=False)
+    verified_by: Mapped[str | None] = mapped_column(ForeignKey("users.id"), nullable=True)
+    student: Mapped[Student] = relationship()
+
+
+class StudentRequest(TimestampMixin, Base):
+    """Online student petitions and administrative requests."""
+    __tablename__ = "student_requests"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    code: Mapped[str] = mapped_column(String(30), unique=True, index=True, nullable=False)
+    student_id: Mapped[str] = mapped_column(ForeignKey("students.id", ondelete="CASCADE"), index=True, nullable=False)
+    request_type: Mapped[str] = mapped_column(String(100), index=True, nullable=False)
+    title: Mapped[str] = mapped_column(String(200), nullable=False)
+    reason: Mapped[str] = mapped_column(Text, nullable=False)
+    attachments: Mapped[list] = mapped_column(JSON, default=list, nullable=False)
+    status: Mapped[str] = mapped_column(String(40), default="CHO_TIEP_NHAN", index=True, nullable=False)  # CHO_TIEP_NHAN, DANG_XU_LY, DA_DUYET, TU_CHOI, YEU_CAU_BO_SUNG
+    rejection_reason: Mapped[str] = mapped_column(Text, default="", nullable=False)
+    assigned_lecturer_id: Mapped[str | None] = mapped_column(ForeignKey("users.id"), nullable=True)
+    rating: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    feedback: Mapped[str | None] = mapped_column(Text, nullable=True)
+    student: Mapped[Student] = relationship()
+    assigned_lecturer: Mapped[User | None] = relationship(foreign_keys=[assigned_lecturer_id])
+
+
+class AcademicSchedule(TimestampMixin, Base):
+    """Class timetables and exam schedules."""
+    __tablename__ = "academic_schedules"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    student_id: Mapped[str | None] = mapped_column(ForeignKey("students.id", ondelete="CASCADE"), index=True, nullable=True)
+    major_id: Mapped[str | None] = mapped_column(ForeignKey("majors.id"), index=True, nullable=True)
+    cohort: Mapped[str] = mapped_column(String(30), default="2026", nullable=False)
+    course_code: Mapped[str] = mapped_column(String(30), nullable=False)
+    course_name: Mapped[str] = mapped_column(String(150), nullable=False)
+    lecturer_name: Mapped[str] = mapped_column(String(100), default="", nullable=False)
+    schedule_type: Mapped[str] = mapped_column(String(30), default="LICH_HOC", index=True, nullable=False)  # LICH_HOC, LICH_THI
+    day_of_week: Mapped[int] = mapped_column(Integer, default=2, nullable=False)  # 2: T2, ..., 7: T7, 8: CN
+    start_time: Mapped[str] = mapped_column(String(20), default="07:30", nullable=False)
+    end_time: Mapped[str] = mapped_column(String(20), default="09:50", nullable=False)
+    schedule_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    room: Mapped[str] = mapped_column(String(50), default="A1-301", nullable=False)
+    exam_format: Mapped[str] = mapped_column(String(60), default="Tự luận", nullable=False)
+    notes: Mapped[str] = mapped_column(String(300), default="", nullable=False)
+
+
+class Announcement(TimestampMixin, Base):
+    """General academic and administrative announcements."""
+    __tablename__ = "announcements"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    title: Mapped[str] = mapped_column(String(250), nullable=False)
+    content: Mapped[Text] = mapped_column(Text, nullable=False)
+    category: Mapped[str] = mapped_column(String(60), default="Đào tạo", index=True, nullable=False)
+    target_role: Mapped[str] = mapped_column(String(30), default="ALL", index=True, nullable=False)  # ALL, SINH_VIEN, GIANG_VIEN
+    is_pinned: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+
 
 

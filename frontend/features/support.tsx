@@ -1,303 +1,1027 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
-import { ArrowRight, ChevronDown, CircleHelp, Download, MessageCircle, Paperclip, Search, Send, TicketCheck } from "lucide-react";
-import { API_BASE, api, Ticket } from "@/lib/api";
+import {
+  AlertCircle,
+  ArrowRight,
+  BookOpen,
+  Calendar,
+  CalendarCheck2,
+  CheckCircle2,
+  ChevronDown,
+  CircleHelp,
+  Clock,
+  Download,
+  FileCheck,
+  FileEdit,
+  FilePlus2,
+  FileText,
+  GraduationCap,
+  HelpCircle,
+  MapPin,
+  MessageCircle,
+  Paperclip,
+  Search,
+  Send,
+  Sparkles,
+  Star,
+  TicketCheck,
+  Upload,
+  UserCheck,
+  X,
+  XCircle,
+} from "lucide-react";
+import {
+  AcademicSchedule,
+  Announcement,
+  api,
+  API_BASE,
+  ChecklistResponse,
+  ChecklistStep,
+  StudentRequest,
+  Ticket,
+} from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import { DemoTag, EmptyState, ErrorNotice, Loading, PageTitle, StatusBadge } from "@/components/ui";
-
 import { StudentHandbook } from "./student-handbook";
-import { Bot, Sparkles } from "lucide-react";
 
 type FAQ = { id: string; question: string; answer: string; category: string };
 type Agent = { id: string; full_name: string; email: string };
 type SupportStats = { total: number; by_status: { status: string; count: number }[]; success_rate: number };
-const supportSchema = z.object({ category: z.string().min(1), subject: z.string().min(4, "Tiêu đề cần ít nhất 4 ký tự."), description: z.string().min(8, "Mô tả cần ít nhất 8 ký tự."), priority: z.string().min(1) });
+
+const supportSchema = z.object({
+  category: z.string().min(1),
+  subject: z.string().min(4, "Tiêu đề cần ít nhất 4 ký tự."),
+  description: z.string().min(8, "Mô tả cần ít nhất 8 ký tự."),
+  priority: z.string().min(1),
+});
 type SupportValues = z.infer<typeof supportSchema>;
-const categories = ["Tuyển sinh", "Hồ sơ sinh viên", "Học phí và tài chính", "Đào tạo và học tập", "Giấy tờ và xác nhận", "Tài khoản và công nghệ", "Cơ sở vật chất", "Khác"];
-const statuses = ["Mới tiếp nhận", "Đang xử lý", "Chờ bổ sung thông tin", "Đã giải quyết", "Đã đóng"];
-const staffRoles = ["super_admin", "support_staff"];
+
+const categories = [
+  "Tuyển sinh",
+  "Hồ sơ sinh viên",
+  "Học phí và tài chính",
+  "Đào tạo và học tập",
+  "Giấy tờ và xác nhận",
+  "Tài khoản và công nghệ",
+  "Cơ sở vật chất",
+  "Khác",
+];
+const staffRoles = ["ADMIN", "super_admin", "support_staff"];
 
 export function Support() {
+  const params = useSearchParams();
   const { user } = useAuth();
   const isStaff = Boolean(user && staffRoles.includes(user.role));
-  const [faqs, setFaqs] = useState<FAQ[]>([]); const [tickets, setTickets] = useState<Ticket[]>([]);
-  const [agents, setAgents] = useState<Agent[]>([]); const [stats, setStats] = useState<SupportStats | null>(null);
-  const [loading, setLoading] = useState(true); const [error, setError] = useState(""); const [success, setSuccess] = useState("");
-  const [formOpen, setFormOpen] = useState(false); const [activeTicket, setActiveTicket] = useState<string | null>(null); const [busyTicket, setBusyTicket] = useState("");
-  const [query, setQuery] = useState(""); const [category, setCategory] = useState(""); const [status, setStatus] = useState("");
+  const isStudent = Boolean(user && ["SINH_VIEN", "student", "sinh_vien"].includes(user.role));
 
-  async function loadTickets() {
-    const params = new URLSearchParams();
-    if (isStaff && query.trim()) params.set("q", query.trim());
-    if (isStaff && category) params.set("category", category);
-    if (isStaff && status) params.set("status", status);
-    setTickets(await api<Ticket[]>(`/support/tickets${params.size ? `?${params}` : ""}`));
-  }
-  useEffect(() => {
-    let live = true;
-    Promise.all([
-      api<FAQ[]>("/support/faqs"),
-      isStaff ? api<SupportStats>("/support/dashboard") : Promise.resolve(null),
-      isStaff ? api<Agent[]>("/support/agents") : Promise.resolve([]),
-    ]).then(([faqRows, dashboard, agentRows]) => {
-      if (live) { setFaqs(faqRows); setStats(dashboard); setAgents(agentRows); }
-    }).catch(reason => { if (live) setError(reason instanceof Error ? reason.message : "Không tải được thông tin hỗ trợ."); });
-    return () => { live = false; };
-  }, [user?.id, user?.role, isStaff]);
-  useEffect(() => {
-    let live = true;
-    if (!user) { setTickets([]); setLoading(false); return () => { live = false; }; }
-    const timer = setTimeout(() => {
-      setLoading(true);
-      const params = new URLSearchParams();
-      if (isStaff && query.trim()) params.set("q", query.trim());
-      if (isStaff && category) params.set("category", category);
-      if (isStaff && status) params.set("status", status);
-      api<Ticket[]>(`/support/tickets${params.size ? `?${params}` : ""}`)
-        .then(rows => { if (live) { setTickets(rows); setError(""); } })
-        .catch(reason => { if (live) setError(reason instanceof Error ? reason.message : "Không tải được danh sách yêu cầu."); })
-        .finally(() => { if (live) setLoading(false); });
-    }, isStaff ? 250 : 0);
-    return () => { live = false; clearTimeout(timer); };
-  }, [user?.id, user?.role, isStaff, query, category, status]);
+  const initialTab =
+    (params.get("tab") as "handbook" | "checklist" | "requests" | "schedules" | "announcements" | "tickets") ||
+    (isStaff ? "requests" : "handbook");
 
-  async function reply(ticket: Ticket, body: string) {
-    setBusyTicket(ticket.id); setError("");
-    try { await api(`/support/tickets/${ticket.id}/messages`, { method: "POST", body: JSON.stringify({ body }) }); await loadTickets(); }
-    catch (reason) { setError(reason instanceof Error ? reason.message : "Không gửi được phản hồi."); }
-    finally { setBusyTicket(""); }
-  }
-  async function mutateTicket(ticket: Ticket, path: string, payload: object) {
-    setBusyTicket(ticket.id); setError("");
+  const [activeTab, setActiveTab] = useState<"handbook" | "checklist" | "requests" | "schedules" | "announcements" | "tickets">(initialTab);
+
+  // Data states
+  const [checklist, setChecklist] = useState<ChecklistResponse | null>(null);
+  const [requests, setRequests] = useState<StudentRequest[]>([]);
+  const [schedules, setSchedules] = useState<AcademicSchedule[]>([]);
+  const [announcements, setAnnouncements] = useState<Announcement[]>([]);
+  const [faqs, setFaqs] = useState<FAQ[]>([]);
+  const [tickets, setTickets] = useState<Ticket[]>([]);
+  const [agents, setAgents] = useState<Agent[]>([]);
+  const [stats, setStats] = useState<SupportStats | null>(null);
+
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
+
+  // State nộp đơn sinh viên mới (SV3)
+  const [requestModalOpen, setRequestModalOpen] = useState(false);
+  const [reqType, setReqType] = useState("Xác nhận sinh viên");
+  const [reqTitle, setReqTitle] = useState("");
+  const [reqReason, setReqReason] = useState("");
+  const [reqAttachment, setReqAttachment] = useState("minh_chung_kem_theo.pdf");
+  const [submittingReq, setSubmittingReq] = useState(false);
+
+  // State đánh giá sao đơn sinh viên (SV7)
+  const [ratingModalReq, setRatingModalReq] = useState<StudentRequest | null>(null);
+  const [ratingStars, setRatingStars] = useState(5);
+  const [ratingFeedback, setRatingFeedback] = useState("");
+  const [submittingRating, setSubmittingRating] = useState(false);
+
+  // State Admin duyệt đơn sinh viên (AD_HT2)
+  const [adminReqModal, setAdminReqModal] = useState<StudentRequest | null>(null);
+  const [adminNextStatus, setAdminNextStatus] = useState("DA_DUYET");
+  const [adminRejectionReason, setAdminRejectionReason] = useState("");
+  const [adminAssignedLecturer, setAdminAssignedLecturer] = useState("");
+  const [submittingAdminReq, setSubmittingAdminReq] = useState(false);
+
+  // State ticket kỹ thuật cũ
+  const [ticketModalOpen, setTicketModalOpen] = useState(false);
+  const [activeTicket, setActiveTicket] = useState<string | null>(null);
+  const [busyTicket, setBusyTicket] = useState("");
+  const [ticketQuery, setTicketQuery] = useState("");
+  const [ticketCategory, setTicketCategory] = useState("");
+  const [ticketStatus, setTicketStatus] = useState("");
+
+  async function loadData() {
+    setLoading(true);
+    setError("");
     try {
-      await api(`/support/tickets/${ticket.id}/${path}`, { method: "PATCH", body: JSON.stringify(payload) });
-      await loadTickets();
-      if (isStaff) setStats(await api<SupportStats>("/support/dashboard"));
-    }
-    catch (reason) { setError(reason instanceof Error ? reason.message : "Không cập nhật được yêu cầu."); }
-    finally { setBusyTicket(""); }
-  }
-  async function rate(ticket: Ticket, rating: number, feedback: string) {
-    setBusyTicket(ticket.id); setError("");
-    try { await api(`/support/tickets/${ticket.id}/rating`, { method: "POST", body: JSON.stringify({ rating, feedback }) }); await loadTickets(); setSuccess("Cảm ơn bạn đã đánh giá chất lượng hỗ trợ."); }
-    catch (reason) { setError(reason instanceof Error ? reason.message : "Không lưu được đánh giá."); }
-    finally { setBusyTicket(""); }
-  }
-  async function downloadAttachment(ticket: Ticket, attachmentId: string, filename: string) {
-    try {
-      const token = window.sessionStorage.getItem("study_access_token");
-      const response = await fetch(`${API_BASE}/support/tickets/${ticket.id}/attachments/${attachmentId}`, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
-      if (!response.ok) throw new Error("Không tải được tệp đính kèm.");
-      const url = URL.createObjectURL(await response.blob()); const link = document.createElement("a");
-      link.href = url; link.download = filename; link.click(); URL.revokeObjectURL(url);
-    } catch (reason) { setError(reason instanceof Error ? reason.message : "Không tải được tệp."); }
-  }
-  const countByStatus = useMemo(() => Object.fromEntries((stats?.by_status ?? []).map(row => [row.status, row.count])), [stats]);
+      const [faqRows, annRows] = await Promise.all([
+        api<FAQ[]>("/support/faqs").catch(() => []),
+        api<Announcement[]>("/support/announcements").catch(() => []),
+      ]);
+      setFaqs(faqRows);
+      setAnnouncements(annRows);
 
-  return <div className="module-page">
-    <PageTitle
-      eyebrow="MODULE M12 · HỖ TRỢ NGƯỜI HỌC"
-      title={isStaff ? "Quản lý yêu cầu hỗ trợ" : "Trung tâm hỗ trợ người học"}
-      description={isStaff ? "Tiếp nhận, phân công và theo dõi trao đổi với người học." : "Cẩm nang tân sinh viên, quy chế đào tạo tín chỉ và tra cứu hệ sinh thái số NEU Study."}
-      action={
-        <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
-
-          {!isStaff && (
-            <a href="/assistant" className="button button-primary" style={{ display: "inline-flex", alignItems: "center", gap: "6px", textDecoration: "none" }}>
-              <Sparkles size={16} /> Hỏi NEU Study AI
-            </a>
-          )}
-          {isStaff && user && (
-            <button className="button button-primary" onClick={() => setFormOpen(true)}>
-              <MessageCircle size={17} /> Tạo yêu cầu
-            </button>
-          )}
-        </div>
+      if (user) {
+        if (isStaff) {
+          const [allReqs, dash, agList, tickList] = await Promise.all([
+            api<StudentRequest[]>("/support/requests/all").catch(() => []),
+            api<SupportStats>("/support/dashboard").catch(() => null),
+            api<Agent[]>("/support/agents").catch(() => []),
+            api<Ticket[]>("/support/tickets").catch(() => []),
+          ]);
+          setRequests(allReqs);
+          setStats(dash);
+          setAgents(agList);
+          setTickets(tickList);
+        } else {
+          const [myChecklist, myReqs, myScheds, myTicks] = await Promise.all([
+            api<ChecklistResponse>("/support/checklist/me").catch(() => null),
+            api<StudentRequest[]>("/support/requests/me").catch(() => []),
+            api<AcademicSchedule[]>("/support/schedules/me").catch(() => []),
+            api<Ticket[]>("/support/tickets").catch(() => []),
+          ]);
+          setChecklist(myChecklist);
+          setRequests(myReqs);
+          setSchedules(myScheds);
+          setTickets(myTicks);
+        }
       }
-    />
+    } catch (err: any) {
+      setError(err?.message || "Không thể tải dữ liệu hỗ trợ.");
+    } finally {
+      setLoading(false);
+    }
+  }
 
-    {!isStaff ? (
-      <StudentHandbook />
-    ) : (
-      <>
-        {!isStaff && (
-          <div className="support-hero">
-            <div className="support-hero-icon"><CircleHelp size={24} /></div>
-            <div>
-              <h2>Chúng tôi có thể giúp gì cho bạn?</h2>
-              <p>Chọn chủ đề bên dưới hoặc gửi yêu cầu để bộ phận phụ trách hỗ trợ.</p>
-            </div>
-            <div className="support-hero-meta">
-              <span><i /> Thường phản hồi trong 1 ngày làm việc</span>
-              <DemoTag />
-            </div>
+  useEffect(() => {
+    void loadData();
+  }, [user, isStaff]);
+
+  // Cập nhật tiến độ 1 bước thủ tục nhập học (SV2)
+  async function handleToggleStep(step: ChecklistStep) {
+    const nextStatus = step.status === "DA_HOAN_THANH" ? "CHUA_HOAN_THANH" : "DA_HOAN_THANH";
+    try {
+      await api<ChecklistStep>(`/support/checklist/${step.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ status: nextStatus }),
+      });
+      const updated = await api<ChecklistResponse>("/support/checklist/me");
+      setChecklist(updated);
+      setSuccess(`Đã cập nhật bước "${step.step_title}".`);
+    } catch (err: any) {
+      setError(err?.message || "Lỗi cập nhật bước.");
+    }
+  }
+
+  // Nộp đơn sinh viên mới (SV3)
+  async function handleCreateRequest(e: React.FormEvent) {
+    e.preventDefault();
+    setSubmittingReq(true);
+    setError("");
+    try {
+      const created = await api<StudentRequest>("/support/requests", {
+        method: "POST",
+        body: JSON.stringify({
+          request_type: reqType,
+          title: reqTitle.trim(),
+          reason: reqReason.trim(),
+          attachments: reqAttachment ? [{ filename: reqAttachment.trim() }] : [],
+        }),
+      });
+      setRequests([created, ...requests]);
+      setRequestModalOpen(false);
+      setReqTitle("");
+      setReqReason("");
+      setSuccess(`Đã gửi đơn trực tuyến ${created.code} thành công. Thầy/Cô và bộ phận liên quan sẽ sớm xử lý.`);
+    } catch (err: any) {
+      setError(err?.message || "Không thể gửi đơn.");
+    } finally {
+      setSubmittingReq(false);
+    }
+  }
+
+  // Đánh giá 1-5 sao cho đơn (SV7)
+  async function handleSubmitRating(e: React.FormEvent) {
+    e.preventDefault();
+    if (!ratingModalReq) return;
+    setSubmittingRating(true);
+    try {
+      const updated = await api<StudentRequest>(`/support/requests/${ratingModalReq.id}/rating`, {
+        method: "POST",
+        body: JSON.stringify({
+          rating: ratingStars,
+          feedback: ratingFeedback.trim(),
+        }),
+      });
+      setRequests(requests.map((r) => (r.id === updated.id ? updated : r)));
+      setRatingModalReq(null);
+      setSuccess("Cảm ơn bạn đã đánh giá chất lượng phục vụ của Nhà trường.");
+    } catch (err: any) {
+      setError(err?.message || "Lỗi khi lưu đánh giá.");
+    } finally {
+      setSubmittingRating(false);
+    }
+  }
+
+  // Admin xử lý / phân công đơn sinh viên (AD_HT2)
+  async function handleAdminUpdateRequest(e: React.FormEvent) {
+    e.preventDefault();
+    if (!adminReqModal) return;
+    setSubmittingAdminReq(true);
+    try {
+      const updated = await api<StudentRequest>(`/support/requests/${adminReqModal.id}/status`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          status: adminNextStatus,
+          rejection_reason: adminRejectionReason.trim(),
+          assigned_lecturer_id: adminAssignedLecturer || null,
+        }),
+      });
+      setRequests(requests.map((r) => (r.id === updated.id ? updated : r)));
+      setAdminReqModal(null);
+      setSuccess(`Đã cập nhật trạng thái đơn ${updated.code} thành công.`);
+    } catch (err: any) {
+      setError(err?.message || "Không thể cập nhật đơn.");
+    } finally {
+      setSubmittingAdminReq(false);
+    }
+  }
+
+  return (
+    <div className="module-page" style={{ maxWidth: "1240px", margin: "0 auto", paddingBottom: "60px" }}>
+      <PageTitle
+        eyebrow="HỖ TRỢ NGƯỜI HỌC · STUDENT SERVICES"
+        title="Trung tâm Hỗ trợ & Dịch vụ Sinh viên"
+        description="Cẩm nang tân sinh viên, thủ tục nhập học 11 bước, dịch vụ một cửa giải quyết đơn từ trực tuyến và lịch thi."
+        action={
+          !isStaff && user ? (
+            <button className="button button-primary" onClick={() => setRequestModalOpen(true)}>
+              <FilePlus2 size={16} /> Gửi đơn trực tuyến
+            </button>
+          ) : null
+        }
+      />
+
+      {success && (
+        <div
+          style={{
+            background: "#f0fdf4",
+            border: "1px solid #22c55e",
+            borderRadius: "10px",
+            padding: "12px 18px",
+            marginBottom: "20px",
+            color: "#15803d",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+            <CheckCircle2 size={18} />
+            <span>{success}</span>
           </div>
+          <button onClick={() => setSuccess("")} style={{ background: "none", border: "none", cursor: "pointer", color: "#15803d" }}>
+            <X size={16} />
+          </button>
+        </div>
+      )}
+
+      {error && <ErrorNotice message={error} />}
+
+      {/* Thanh Tabs chuyển đổi */}
+      <div className="personnel-tabs" style={{ marginBottom: "22px" }}>
+        <button className={activeTab === "handbook" ? "active" : ""} onClick={() => setActiveTab("handbook")}>
+          <BookOpen size={16} /> Cẩm nang & Tra cứu website NEU
+        </button>
+
+        {user && !isStaff && (
+          <button className={activeTab === "checklist" ? "active" : ""} onClick={() => setActiveTab("checklist")}>
+            <CheckCircle2 size={16} /> Thủ tục nhập học 11 bước{" "}
+            {checklist ? `(${checklist.progress_pct}%)` : ""}
+          </button>
         )}
-        {isStaff && stats && (
-          <div className="support-stats-grid">
-            {[{ label: "Tổng yêu cầu", value: stats.total, status: "" }, ...statuses.map(value => ({ label: value, value: countByStatus[value] ?? 0, status: value }))].map(item => (
-              <button key={item.label} className={`support-stat ${status === item.status ? "selected" : ""}`} onClick={() => setStatus(status === item.status ? "" : item.status)}>
-                <span>{item.label}</span><strong>{item.value}</strong>
-              </button>
-            ))}
-            <div className="support-stat success-rate">
-              <span>Tỷ lệ xử lý thành công</span><strong>{stats.success_rate}%</strong>
-            </div>
-          </div>
+
+        {user && (
+          <button className={activeTab === "requests" ? "active" : ""} onClick={() => setActiveTab("requests")}>
+            <FileText size={16} /> {isStaff ? "Quản lý đơn sinh viên" : "Đơn trực tuyến của tôi"} ({requests.length})
+          </button>
         )}
-        {error && <ErrorNotice message={error} />}
-        {success && <div className="success-notice"><TicketCheck size={16} />{success}<button onClick={() => setSuccess("")}>×</button></div>}
-        <div className="support-grid">
-          <section>
-            <div className="section-heading">
-              <div>
-                <h2>{isStaff ? "Danh sách yêu cầu" : "Yêu cầu của tôi"}</h2>
-                <p>{isStaff ? "Tìm kiếm, lọc và xử lý yêu cầu" : "Theo dõi trao đổi và trạng thái xử lý"}</p>
+
+        {user && !isStaff && (
+          <button className={activeTab === "schedules" ? "active" : ""} onClick={() => setActiveTab("schedules")}>
+            <CalendarCheck2 size={16} /> Thời khóa biểu & Lịch thi
+          </button>
+        )}
+
+        <button className={activeTab === "announcements" ? "active" : ""} onClick={() => setActiveTab("announcements")}>
+          <AlertCircle size={16} /> Thông báo học tập ({announcements.length})
+        </button>
+
+        <button className={activeTab === "tickets" ? "active" : ""} onClick={() => setActiveTab("tickets")}>
+          <CircleHelp size={16} /> Hỗ trợ kỹ thuật & FAQ ({tickets.length})
+        </button>
+      </div>
+
+      {loading ? (
+        <Loading />
+      ) : activeTab === "handbook" ? (
+        /* ================= TAB 1: CẨM NANG & SỔ TAY SINH VIÊN ================= */
+        <StudentHandbook />
+      ) : activeTab === "checklist" ? (
+        /* ================= TAB 2: CHECKLIST NHẬP HỌC 11 BƯỚC (SV2) ================= */
+        checklist ? (
+          <div>
+            {/* Thanh tiến độ phần trăm % */}
+            <div
+              style={{
+                background: "linear-gradient(135deg, #1e3a8a 0%, #0369a1 100%)",
+                borderRadius: "16px",
+                padding: "28px 32px",
+                color: "#ffffff",
+                marginBottom: "28px",
+                boxShadow: "0 8px 24px rgba(3, 105, 161, 0.2)",
+              }}
+            >
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
+                <div>
+                  <h3 style={{ fontSize: "20px", fontWeight: 700, margin: "0 0 4px", color: "#ffffff" }}>
+                    Tiến độ hoàn thành thủ tục nhập học
+                  </h3>
+                  <p style={{ margin: 0, fontSize: "14px", opacity: 0.9 }}>
+                    Đã hoàn thành <strong>{checklist.completed_count} / {checklist.total_steps} bước</strong>. Vui lòng hoàn tất trước ngày khai giảng.
+                  </p>
+                </div>
+                <div style={{ fontSize: "36px", fontWeight: 800 }}>{checklist.progress_pct}%</div>
               </div>
-              <TicketCheck size={20} />
+
+              {/* Progress bar */}
+              <div style={{ width: "100%", height: "10px", background: "rgba(255,255,255,0.25)", borderRadius: "999px", overflow: "hidden" }}>
+                <div
+                  style={{
+                    width: `${checklist.progress_pct}%`,
+                    height: "100%",
+                    background: "#22c55e",
+                    borderRadius: "999px",
+                    transition: "width 0.4s ease",
+                  }}
+                />
+              </div>
             </div>
-            {isStaff && (
-              <div className="support-filters">
-                <label className="search-field">
-                  <Search size={17} />
-                  <input value={query} onChange={event => setQuery(event.target.value)} placeholder="Mã yêu cầu, sinh viên hoặc nội dung…" />
-                </label>
-                <select aria-label="Lọc danh mục" value={category} onChange={event => setCategory(event.target.value)}>
-                  <option value="">Tất cả danh mục</option>
-                  {categories.map(value => <option key={value}>{value}</option>)}
-                </select>
-                <select aria-label="Lọc trạng thái" value={status} onChange={event => setStatus(event.target.value)}>
-                  <option value="">Tất cả trạng thái</option>
-                  {statuses.map(value => <option key={value}>{value}</option>)}
-                </select>
-              </div>
-            )}
-            {loading ? (
-              <Loading />
-            ) : !user ? (
-              <EmptyState icon={<MessageCircle size={22} />} title="Đăng nhập để xem yêu cầu" description="Yêu cầu chỉ hiển thị với người gửi và nhân viên được phân quyền." />
-            ) : tickets.length === 0 ? (
-              <EmptyState icon={<TicketCheck size={22} />} title={isStaff ? "Không tìm thấy yêu cầu" : "Bạn chưa có yêu cầu nào"} description={isStaff ? "Thử thay đổi từ khóa hoặc bộ lọc." : "Tạo yêu cầu mới để được bộ phận phụ trách hỗ trợ."} action={!isStaff ? <button className="button button-secondary" onClick={() => setFormOpen(true)}>Tạo yêu cầu đầu tiên</button> : undefined} />
-            ) : (
-              <div className="ticket-list">
-                {tickets.map(ticket => (
-                  <article className={`ticket-card ${activeTicket === ticket.id ? "expanded" : ""}`} key={ticket.id}>
-                    <button className="ticket-card-head" onClick={() => setActiveTicket(activeTicket === ticket.id ? null : ticket.id)}>
-                      <span className="ticket-code">{ticket.code}</span>
-                      <span className="ticket-title">
-                        <strong>{ticket.subject}</strong>
-                        <small>{ticket.category} · {new Date(ticket.created_at).toLocaleDateString("vi-VN")}{isStaff ? ` · ${ticket.owner_name}` : ""}</small>
-                      </span>
-                      <StatusBadge>{ticket.status}</StatusBadge>
-                      <ChevronDown size={17} />
-                    </button>
-                    {activeTicket === ticket.id && (
-                      <div className="ticket-detail">
-                        <p>{ticket.description}</p>
-                        {ticket.attachments?.length > 0 && (
-                          <div className="attachment-list">
-                            {ticket.attachments.map(file => (
-                              <button key={file.id} onClick={() => downloadAttachment(ticket, file.id, file.filename)}>
-                                <Download size={15} />{file.filename}<small>{(file.size_bytes / 1024).toFixed(0)} KB</small>
-                              </button>
-                            ))}
-                          </div>
-                        )}
-                        <div className="ticket-thread">
-                          {ticket.messages.map(message => (
-                            <div className={`thread-message ${message.author_id === user.id ? "own" : ""}`} key={message.id}>
-                              <span>{message.author_id === user.id ? "Bạn" : isStaff ? "Người tham gia" : "Bộ phận hỗ trợ"} · {new Date(message.created_at).toLocaleString("vi-VN")}</span>
-                              <p>{message.body}</p>
-                            </div>
-                          ))}
-                        </div>
-                        <ReplyBox onSend={body => reply(ticket, body)} busy={busyTicket === ticket.id} />
-                        {isStaff && (
-                          <div className="ticket-manage">
-                            <label>Trạng thái
-                              <select disabled={busyTicket === ticket.id} value={ticket.status} onChange={event => mutateTicket(ticket, "status", { status: event.target.value })}>
-                                {statuses.map(value => <option key={value}>{value}</option>)}
-                              </select>
-                            </label>
-                            <label>Người phụ trách
-                              <select disabled={busyTicket === ticket.id} value={ticket.assignee_id ?? ""} onChange={event => mutateTicket(ticket, "assignee", { assignee_id: event.target.value || null })}>
-                                <option value="">Chưa phân công</option>
-                                {agents.map(agent => <option key={agent.id} value={agent.id}>{agent.full_name}</option>)}
-                              </select>
-                            </label>
-                          </div>
-                        )}
-                        {!isStaff && ["Đã giải quyết", "Đã đóng"].includes(ticket.status) && (
-                          <TicketRating rating={ticket.satisfaction_rating} feedback={ticket.satisfaction_feedback} busy={busyTicket === ticket.id} onRate={(value, feedback) => rate(ticket, value, feedback)} />
+
+            {/* Danh sách 11 bước chi tiết */}
+            <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+              {checklist.steps.map((step) => {
+                const isDone = step.status === "DA_HOAN_THANH";
+                return (
+                  <div
+                    key={step.id}
+                    style={{
+                      background: "var(--card-bg, #ffffff)",
+                      border: `1.5px solid ${isDone ? "#bbf7d0" : "#e2e8f0"}`,
+                      borderRadius: "12px",
+                      padding: "18px 22px",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      gap: "16px",
+                      boxShadow: "0 2px 6px rgba(0,0,0,0.02)",
+                    }}
+                  >
+                    <div style={{ display: "flex", alignItems: "flex-start", gap: "16px" }}>
+                      <div
+                        style={{
+                          width: "36px",
+                          height: "36px",
+                          borderRadius: "50%",
+                          background: isDone ? "#22c55e" : "#f1f5f9",
+                          color: isDone ? "#ffffff" : "#64748b",
+                          fontWeight: 700,
+                          fontSize: "15px",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          flexShrink: 0,
+                        }}
+                      >
+                        {isDone ? "✓" : step.step_number}
+                      </div>
+                      <div>
+                        <h4
+                          style={{
+                            margin: "0 0 4px",
+                            fontSize: "15.5px",
+                            fontWeight: 700,
+                            color: isDone ? "#15803d" : "inherit",
+                          }}
+                        >
+                          Bước {step.step_number}: {step.step_title}
+                        </h4>
+                        <p style={{ margin: 0, fontSize: "13.5px", color: "#64748b", lineHeight: "1.5" }}>
+                          {step.step_description}
+                        </p>
+                        {step.completed_at && (
+                          <small style={{ color: "#16a34a", display: "block", marginTop: "4px" }}>
+                            Hoàn thành lúc {new Date(step.completed_at).toLocaleString("vi-VN")}
+                          </small>
                         )}
                       </div>
-                    )}
-                  </article>
-                ))}
+                    </div>
+
+                    <button
+                      onClick={() => handleToggleStep(step)}
+                      style={{
+                        padding: "8px 16px",
+                        borderRadius: "8px",
+                        fontSize: "13px",
+                        fontWeight: 650,
+                        cursor: "pointer",
+                        border: isDone ? "1px solid #cbd5e1" : "none",
+                        background: isDone ? "transparent" : "#0284c7",
+                        color: isDone ? "#475569" : "#ffffff",
+                        flexShrink: 0,
+                      }}
+                    >
+                      {isDone ? "Đánh dấu chưa xong" : "Xác nhận hoàn thành"}
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        ) : (
+          <EmptyState title="Không tìm thấy dữ liệu thủ tục nhập học" description="Chỉ tân sinh viên mới cần thực hiện danh sách thủ tục này." />
+        )
+      ) : activeTab === "requests" ? (
+        /* ================= TAB 3: ĐƠN TRỰC TUYẾN (SV3, SV4, SV7, AD_HT) ================= */
+        <div>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
+            <p style={{ margin: 0, color: "#64748b", fontSize: "14px" }}>
+              {isStaff
+                ? "Danh sách các đơn xác nhận, bảng điểm, bảo lưu kết quả và rút học phí từ sinh viên."
+                : "Theo dõi tình trạng xử lý đơn trực tuyến và đánh giá chất lượng phục vụ sau khi hoàn thành."}
+            </p>
+            {!isStaff && (
+              <button className="button button-primary" onClick={() => setRequestModalOpen(true)}>
+                <FilePlus2 size={16} /> Gửi đơn mới
+              </button>
+            )}
+          </div>
+
+          {requests.length === 0 ? (
+            <EmptyState
+              icon={<FileText size={36} />}
+              title="Chưa có đơn trực tuyến nào"
+              description="Các đơn xin xác nhận sinh viên, cấp bảng điểm hoặc bảo lưu sẽ xuất hiện tại đây."
+              action={
+                !isStaff ? (
+                  <button className="button button-secondary" onClick={() => setRequestModalOpen(true)}>
+                    Tạo đơn đầu tiên
+                  </button>
+                ) : undefined
+              }
+            />
+          ) : (
+            <div className="table-panel">
+              <div className="responsive-table">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Mã đơn</th>
+                      {isStaff && <th>Sinh viên</th>}
+                      <th>Loại thủ tục</th>
+                      <th>Tiêu đề & Lý do</th>
+                      <th>Cán bộ xử lý</th>
+                      <th>Ngày gửi</th>
+                      <th>Trạng thái</th>
+                      <th>Thao tác</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {requests.map((r) => (
+                      <tr key={r.id}>
+                        <td>
+                          <strong className="mono">{r.code}</strong>
+                        </td>
+                        {isStaff && (
+                          <td>
+                            <strong>{r.student_name}</strong>
+                            <small style={{ display: "block", color: "#64748b" }}>{r.student_number}</small>
+                          </td>
+                        )}
+                        <td>
+                          <span style={{ fontWeight: 600, color: "#0284c7" }}>{r.request_type}</span>
+                        </td>
+                        <td style={{ maxWidth: "260px" }}>
+                          <strong>{r.title}</strong>
+                          <p style={{ margin: "2px 0 0", fontSize: "12px", color: "#64748b" }}>{r.reason}</p>
+                          {r.rejection_reason && (
+                            <small style={{ display: "block", color: "#dc2626", marginTop: "4px" }}>
+                              Lý do: {r.rejection_reason}
+                            </small>
+                          )}
+                        </td>
+                        <td>{r.assigned_lecturer_name || "Phòng Đào tạo"}</td>
+                        <td>{new Date(r.created_at).toLocaleDateString("vi-VN")}</td>
+                        <td>
+                          <StatusBadge>{r.status}</StatusBadge>
+                        </td>
+                        <td>
+                          {isStaff ? (
+                            <button
+                              className="mini-button"
+                              onClick={() => {
+                                setAdminReqModal(r);
+                                setAdminNextStatus(r.status);
+                                setAdminRejectionReason(r.rejection_reason || "");
+                                setAdminAssignedLecturer(r.assigned_lecturer_id || "");
+                              }}
+                            >
+                              Xử lý đơn
+                            </button>
+                          ) : (
+                            r.status === "DA_DUYET" && (
+                              <button
+                                className="mini-button"
+                                style={{ background: r.rating ? "#f1f5f9" : "#fef3c7", color: r.rating ? "#475569" : "#b45309" }}
+                                onClick={() => {
+                                  setRatingModalReq(r);
+                                  setRatingStars(r.rating || 5);
+                                  setRatingFeedback(r.feedback || "");
+                                }}
+                              >
+                                {r.rating ? `★ ${r.rating} sao` : "★ Đánh giá"}
+                              </button>
+                            )
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+        </div>
+      ) : activeTab === "schedules" ? (
+        /* ================= TAB 4: THỜI KHÓA BIỂU & LỊCH THI (SV6) ================= */
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "24px" }}>
+          {/* Cột 1: Thời khóa biểu trong tuần */}
+          <div
+            style={{
+              background: "var(--card-bg, #ffffff)",
+              border: "1px solid var(--border-color, #e2e8f0)",
+              borderRadius: "14px",
+              padding: "24px",
+              boxShadow: "0 2px 8px rgba(0,0,0,0.04)",
+            }}
+          >
+            <h3 style={{ fontSize: "17px", fontWeight: 700, margin: "0 0 16px", display: "flex", alignItems: "center", gap: "8px" }}>
+              <CalendarCheck2 size={18} color="#0284c7" /> Thời khóa biểu học tập học kỳ 1
+            </h3>
+
+            {schedules.filter((s) => s.schedule_type === "LICH_HOC").length === 0 ? (
+              <EmptyState title="Chưa có thời khóa biểu" description="Lịch học của bạn sẽ hiển thị sau khi hoàn tất đăng ký học phần." />
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                {schedules
+                  .filter((s) => s.schedule_type === "LICH_HOC")
+                  .map((sch) => (
+                    <div
+                      key={sch.id}
+                      style={{
+                        padding: "14px",
+                        borderRadius: "10px",
+                        background: "#f8fafc",
+                        border: "1px solid #e2e8f0",
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                      }}
+                    >
+                      <div>
+                        <span
+                          style={{
+                            background: "#e0f2fe",
+                            color: "#0369a1",
+                            fontWeight: 700,
+                            fontSize: "12px",
+                            padding: "2px 8px",
+                            borderRadius: "6px",
+                            display: "inline-block",
+                            marginBottom: "4px",
+                          }}
+                        >
+                          Thứ {sch.day_of_week === 8 ? "CN" : sch.day_of_week} ({sch.start_time} - {sch.end_time})
+                        </span>
+                        <h4 style={{ margin: "2px 0", fontSize: "14.5px", fontWeight: 700 }}>{sch.course_name}</h4>
+                        <small style={{ color: "#64748b" }}>
+                          Giảng viên: {sch.lecturer_name} · Mã: {sch.course_code}
+                        </small>
+                      </div>
+                      <div style={{ textAlign: "right", flexShrink: 0 }}>
+                        <span style={{ fontWeight: 700, color: "#1e293b", fontSize: "14px" }}>{sch.room}</span>
+                        <small style={{ display: "block", color: "#64748b" }}>{sch.notes || "Lý thuyết"}</small>
+                      </div>
+                    </div>
+                  ))}
               </div>
             )}
-          </section>
-          <aside className="faq-side">
-            <div className="section-heading">
-              <div><h2>Câu hỏi thường gặp</h2><p>Câu trả lời nhanh từ NEU Study</p></div>
-              <CircleHelp size={20} />
-            </div>
-            {loading ? (
-              <Loading />
+          </div>
+
+          {/* Cột 2: Lịch thi kết thúc học phần */}
+          <div
+            style={{
+              background: "var(--card-bg, #ffffff)",
+              border: "1px solid var(--border-color, #e2e8f0)",
+              borderRadius: "14px",
+              padding: "24px",
+              boxShadow: "0 2px 8px rgba(0,0,0,0.04)",
+            }}
+          >
+            <h3 style={{ fontSize: "17px", fontWeight: 700, margin: "0 0 16px", display: "flex", alignItems: "center", gap: "8px" }}>
+              <Clock size={18} color="#dc2626" /> Lịch thi kết thúc học phần
+            </h3>
+
+            {schedules.filter((s) => s.schedule_type === "LICH_THI").length === 0 ? (
+              <EmptyState title="Chưa có lịch thi" description="Lịch thi sẽ được công bố trước đợt thi 2 tuần." />
             ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                {schedules
+                  .filter((s) => s.schedule_type === "LICH_THI")
+                  .map((sch) => (
+                    <div
+                      key={sch.id}
+                      style={{
+                        padding: "14px",
+                        borderRadius: "10px",
+                        background: "#fff1f2",
+                        border: "1px solid #fecdd3",
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                      }}
+                    >
+                      <div>
+                        <span
+                          style={{
+                            background: "#ffe4e6",
+                            color: "#be123c",
+                            fontWeight: 700,
+                            fontSize: "12px",
+                            padding: "2px 8px",
+                            borderRadius: "6px",
+                            display: "inline-block",
+                            marginBottom: "4px",
+                          }}
+                        >
+                          {sch.schedule_date ? new Date(sch.schedule_date).toLocaleDateString("vi-VN") : "Lịch thi"} · {sch.start_time}
+                        </span>
+                        <h4 style={{ margin: "2px 0", fontSize: "14.5px", fontWeight: 700 }}>{sch.course_name}</h4>
+                        <small style={{ color: "#881337" }}>
+                          Hình thức: {sch.exam_format || "Tự luận"} · Giám thị: {sch.lecturer_name}
+                        </small>
+                      </div>
+                      <div style={{ textAlign: "right", flexShrink: 0 }}>
+                        <strong style={{ color: "#be123c", fontSize: "15px" }}>{sch.room}</strong>
+                        <small style={{ display: "block", color: "#64748b" }}>Có mặt trước 15p</small>
+                      </div>
+                    </div>
+                  ))}
+              </div>
+            )}
+          </div>
+        </div>
+      ) : activeTab === "announcements" ? (
+        /* ================= TAB 5: THÔNG BÁO HỌC TẬP (SV5) ================= */
+        <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
+          {announcements.map((item) => (
+            <article
+              key={item.id}
+              style={{
+                background: "var(--card-bg, #ffffff)",
+                border: "1px solid var(--border-color, #e2e8f0)",
+                borderRadius: "12px",
+                padding: "20px",
+                boxShadow: "0 2px 6px rgba(0,0,0,0.03)",
+              }}
+            >
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "8px" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                  <span
+                    style={{
+                      background: "#e0f2fe",
+                      color: "#0369a1",
+                      fontSize: "12px",
+                      fontWeight: 650,
+                      padding: "3px 10px",
+                      borderRadius: "999px",
+                    }}
+                  >
+                    {item.category}
+                  </span>
+                  {item.is_pinned && (
+                    <span
+                      style={{
+                        background: "#fef3c7",
+                        color: "#b45309",
+                        fontSize: "11.5px",
+                        fontWeight: 700,
+                        padding: "2px 8px",
+                        borderRadius: "999px",
+                      }}
+                    >
+                      Ghim quan trọng
+                    </span>
+                  )}
+                </div>
+                <small style={{ color: "#94a3b8" }}>{new Date(item.created_at).toLocaleDateString("vi-VN")}</small>
+              </div>
+              <h3 style={{ fontSize: "16px", fontWeight: 700, margin: "0 0 8px", color: "var(--text-main, #0f172a)" }}>
+                {item.title}
+              </h3>
+              <p style={{ margin: 0, fontSize: "14px", lineHeight: "1.6", color: "#475569" }}>{item.content}</p>
+            </article>
+          ))}
+        </div>
+      ) : (
+        /* ================= TAB 6: TICKETS KỸ THUẬT & FAQ ================= */
+        <div>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
+            <p style={{ margin: 0, color: "#64748b", fontSize: "14px" }}>
+              Kênh phản ánh sự cố kỹ thuật, tài khoản học tập và câu hỏi thường gặp về quy chế NEU.
+            </p>
+            {user && (
+              <button className="button button-primary" onClick={() => setTicketModalOpen(true)}>
+                <CircleHelp size={16} /> Gửi yêu cầu hỗ trợ kỹ thuật
+              </button>
+            )}
+          </div>
+
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 340px", gap: "24px" }}>
+            <div className="table-panel">
+              <div className="responsive-table">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Mã</th>
+                      <th>Chủ đề</th>
+                      <th>Nhóm</th>
+                      <th>Ngày gửi</th>
+                      <th>Trạng thái</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {tickets.map((t) => (
+                      <tr key={t.id}>
+                        <td>
+                          <strong className="mono">{t.code}</strong>
+                        </td>
+                        <td>
+                          <strong>{t.subject}</strong>
+                        </td>
+                        <td>{t.category}</td>
+                        <td>{new Date(t.created_at).toLocaleDateString("vi-VN")}</td>
+                        <td>
+                          <StatusBadge>{t.status}</StatusBadge>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Cột FAQ */}
+            <div
+              style={{
+                background: "var(--card-bg, #ffffff)",
+                border: "1px solid var(--border-color, #e2e8f0)",
+                borderRadius: "14px",
+                padding: "20px",
+              }}
+            >
+              <h4 style={{ margin: "0 0 12px", fontSize: "15px", fontWeight: 700 }}>Câu hỏi thường gặp</h4>
               <div className="faq-list">
-                {faqs.map(faq => (
+                {faqs.slice(0, 6).map((faq) => (
                   <details className="faq-item" key={faq.id}>
-                    <summary><span>{faq.question}</span><ChevronDown size={17} /></summary>
-                    <div className="faq-answer"><span className="faq-category">{faq.category}</span><p>{faq.answer}</p></div>
+                    <summary>
+                      <span>{faq.question}</span>
+                      <ChevronDown size={15} />
+                    </summary>
+                    <div className="faq-answer">
+                      <p>{faq.answer}</p>
+                    </div>
                   </details>
                 ))}
               </div>
-            )}
-            <button className="faq-ai-link" onClick={() => window.location.assign("/assistant")}>
-              <span className="faq-ai-icon">✦</span>
-              <span><strong>Cần trợ giúp thêm?</strong><small>Hỏi NEU Study AI Assistant</small></span>
-              <ArrowRight size={17} />
-            </button>
-          </aside>
+            </div>
+          </div>
         </div>
-      </>
-    )}
-    {formOpen && <TicketDialog onClose={() => setFormOpen(false)} onCreated={async (ticket, note) => { setFormOpen(false); await loadTickets(); setActiveTicket(ticket.id); setSuccess(note ? `Đã tạo yêu cầu ${ticket.code}. ${note}` : `Đã tạo yêu cầu ${ticket.code}.`); }} />}
-  </div>;
-}
+      )}
 
-function ReplyBox({ onSend, busy }: { onSend: (body: string) => void; busy: boolean }) {
-  const [body, setBody] = useState("");
-  return <form className="reply-box" onSubmit={event => { event.preventDefault(); if (body.trim()) { onSend(body.trim()); setBody(""); } }}><input value={body} onChange={event => setBody(event.target.value)} placeholder="Viết phản hồi…" /><button className="button button-primary" disabled={busy || !body.trim()} aria-label="Gửi phản hồi"><Send size={16} /></button></form>;
-}
+      {/* MODAL GỬI ĐƠN SINH VIÊN MỚI (SV3) */}
+      {requestModalOpen && (
+        <div className="modal-backdrop" onClick={() => setRequestModalOpen(false)}>
+          <section className="form-modal" role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()} style={{ maxWidth: "540px" }}>
+            <div className="modal-heading">
+              <div>
+                <div className="eyebrow">DỊCH VỤ MỘT CỬA SINH VIÊN</div>
+                <h2>Gửi đơn trực tuyến</h2>
+                <p>Chọn đúng loại đơn theo nhu cầu để Phòng Quản lý Đào tạo tiếp nhận xử lý nhanh nhất.</p>
+              </div>
+              <button className="modal-close" onClick={() => setRequestModalOpen(false)}>
+                ×
+              </button>
+            </div>
 
-function TicketRating({ rating, feedback, busy, onRate }: { rating: number | null; feedback: string | null; busy: boolean; onRate: (rating: number, feedback: string) => void }) {
-  const [selected, setSelected] = useState(0); const [note, setNote] = useState("");
-  if (rating) return <div className="rating-saved"><span>Đánh giá của bạn</span><strong>{"★".repeat(rating)}{"☆".repeat(5 - rating)}</strong>{feedback && <small>{feedback}</small>}</div>;
-  return <div className="ticket-rating"><span>Yêu cầu đã giải quyết — bạn đánh giá thế nào?</span><div className="rating-actions"><div className="rating-stars">{[1, 2, 3, 4, 5].map(value => <button key={value} type="button" className={selected >= value ? "selected" : ""} onClick={() => setSelected(value)} aria-label={`${value} sao`}>★</button>)}</div><input value={note} onChange={event => setNote(event.target.value)} placeholder="Góp ý (không bắt buộc)" maxLength={1000} /><button className="mini-button" disabled={!selected || busy} onClick={() => onRate(selected, note)}>Gửi đánh giá</button></div></div>;
-}
+            <form className="form-stack" onSubmit={handleCreateRequest}>
+              <label>
+                Loại thủ tục / Đơn từ *
+                <select value={reqType} onChange={(e) => setReqType(e.target.value)}>
+                  <option value="Xác nhận sinh viên">1. Giấy xác nhận sinh viên (vé xe bus, vay vốn, hoãn NVQS)</option>
+                  <option value="Cấp bảng điểm tạm thời">2. Cấp bảng điểm tạm thời (xét học bổng, việc làm)</option>
+                  <option value="Xin bảo lưu kết quả học tập">3. Xin bảo lưu kết quả học tập</option>
+                  <option value="Xin rút học phí / hoàn phí">4. Xin rút học phí / hoàn phí</option>
+                </select>
+              </label>
 
-function TicketDialog({ onClose, onCreated }: { onClose: () => void; onCreated: (ticket: Ticket, note?: string) => void }) {
-  const [error, setError] = useState(""); const [busy, setBusy] = useState(false); const [files, setFiles] = useState<FileList | null>(null);
-  const { register, handleSubmit, formState: { errors } } = useForm<SupportValues>({ resolver: zodResolver(supportSchema), defaultValues: { category: "Đào tạo và học tập", priority: "Bình thường" } });
-  const submit = async (values: SupportValues) => {
-    setBusy(true); setError("");
-    try {
-      const ticket = await api<Ticket>("/support/tickets", { method: "POST", body: JSON.stringify(values) });
-      const uploadErrors: string[] = [];
-      if (files) for (const file of Array.from(files)) {
-        const data = new FormData(); data.append("file", file);
-        try { await api(`/support/tickets/${ticket.id}/attachments`, { method: "POST", body: data }); }
-        catch (reason) { uploadErrors.push(`${file.name}: ${reason instanceof Error ? reason.message : "lỗi tải tệp"}`); }
-      }
-      onCreated(ticket, uploadErrors.length ? `Một số tệp chưa tải lên được (${uploadErrors.join("; ")}).` : undefined);
-    } catch (reason) { setError(reason instanceof Error ? reason.message : "Không thể gửi yêu cầu."); }
-    finally { setBusy(false); }
-  };
-  return <div className="modal-backdrop" onClick={onClose}><section className="form-modal" role="dialog" aria-modal="true" onClick={event => event.stopPropagation()}><div className="modal-heading"><div><div className="eyebrow">HỖ TRỢ NGƯỜI HỌC</div><h2>Gửi yêu cầu hỗ trợ</h2><p>Bạn có thể đính kèm PDF, DOCX, TXT hoặc ảnh (tối đa 10 MB/tệp).</p></div><button className="modal-close" onClick={onClose}>×</button></div><form className="form-stack" onSubmit={handleSubmit(submit)}><label>Nhóm vấn đề<select {...register("category")}>{categories.map(value => <option key={value}>{value}</option>)}</select></label><label>Tiêu đề<input {...register("subject")} placeholder="Mô tả ngắn gọn vấn đề" />{errors.subject && <small className="field-error">{errors.subject.message}</small>}</label><label>Nội dung<textarea rows={5} {...register("description")} placeholder="Mô tả chi tiết để chúng tôi hỗ trợ nhanh hơn…" />{errors.description && <small className="field-error">{errors.description.message}</small>}</label><label>Mức độ ưu tiên<select {...register("priority")}><option>Bình thường</option><option>Thấp</option><option>Cao</option></select></label><label className="file-picker"><span><Paperclip size={16} /> Tài liệu đính kèm</span><input type="file" multiple accept=".pdf,.docx,.txt,.png,.jpg,.jpeg" onChange={event => setFiles(event.target.files)} /><small>{files?.length ? Array.from(files).map(file => file.name).join(", ") : "Không bắt buộc"}</small></label>{error && <div className="inline-error">{error}</div>}<div className="modal-actions"><button type="button" className="button button-ghost" onClick={onClose}>Hủy</button><button className="button button-primary" disabled={busy}>{busy ? "Đang gửi…" : "Gửi yêu cầu"}<ArrowRight size={16} /></button></div></form></section></div>;
+              <label>
+                Tiêu đề đơn *
+                <input
+                  required
+                  value={reqTitle}
+                  onChange={(e) => setReqTitle(e.target.value)}
+                  placeholder="Ví dụ: Xin cấp giấy xác nhận sinh viên làm thủ tục vay vốn..."
+                />
+              </label>
+
+              <label>
+                Lý do & Nội dung cụ thể *
+                <textarea
+                  required
+                  rows={4}
+                  value={reqReason}
+                  onChange={(e) => setReqReason(e.target.value)}
+                  placeholder="Trình bày rõ lý do, học kỳ và mục đích sử dụng..."
+                />
+              </label>
+
+              <label>
+                Tên tệp minh chứng đính kèm (nếu có)
+                <input
+                  value={reqAttachment}
+                  onChange={(e) => setReqAttachment(e.target.value)}
+                  placeholder="minh_chung_ho_ngheo.pdf"
+                />
+              </label>
+
+              <div className="modal-actions">
+                <button type="button" className="button button-ghost" onClick={() => setRequestModalOpen(false)}>
+                  Hủy
+                </button>
+                <button type="submit" className="button button-primary" disabled={submittingReq}>
+                  {submittingReq ? "Đang gửi..." : "Gửi đơn trực tuyến"}
+                </button>
+              </div>
+            </form>
+          </section>
+        </div>
+      )}
+
+      {/* MODAL ĐÁNH GIÁ SAO (SV7) */}
+      {ratingModalReq && (
+        <div className="modal-backdrop" onClick={() => setRatingModalReq(null)}>
+          <section className="form-modal" role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()} style={{ maxWidth: "460px" }}>
+            <div className="modal-heading">
+              <div>
+                <div className="eyebrow">ĐÁNH GIÁ CHẤT LƯỢNG PHỤC VỤ</div>
+                <h2>Đánh giá xử lý đơn {ratingModalReq.code}</h2>
+                <p>Thầy/Cô và Phòng ban mong nhận được phản hồi để nâng cao chất lượng hỗ trợ sinh viên.</p>
+              </div>
+              <button className="modal-close" onClick={() => setRatingModalReq(null)}>
+                ×
+              </button>
+            </div>
+
+            <form className="form-stack" onSubmit={handleSubmitRating}>
+              <div style={{ textAlign: "center", margin: "10px 0" }}>
+                <span style={{ fontSize: "14px", color: "#64748b", display: "block", marginBottom: "8px" }}>
+                  Mức độ hài lòng của bạn:
+                </span>
+                <div style={{ display: "flex", justifyContent: "center", gap: "8px" }}>
+                  {[1, 2, 3, 4, 5].map((s) => (
+                    <button
+                      key={s}
+                      type="button"
+                      onClick={() => setRatingStars(s)}
+                      style={{
+                        background: "none",
+                        border: "none",
+                        fontSize: "30px",
+                        cursor: "pointer",
+                        color: s <= ratingStars ? "#f59e0b" : "#cbd5e1",
+                      }}
+                    >
+                      ★
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <label>
+                Ý kiến góp ý thêm (tùy chọn):
+                <textarea
+                  rows={3}
+                  value={ratingFeedback}
+                  onChange={(e) => setRatingFeedback(e.target.value)}
+                  placeholder="Thủ tục nhanh chóng, nhiệt tình..."
+                />
+              </label>
+
+              <div className="modal-actions">
+                <button type="button" className="button button-ghost" onClick={() => setRatingModalReq(null)}>
+                  Hủy
+                </button>
+                <button type="submit" className="button button-primary" disabled={submittingRating}>
+                  {submittingRating ? "Đang gửi..." : "Xác nhận đánh giá"}
+                </button>
+              </div>
+            </form>
+          </section>
+        </div>
+      )}
+
+      {/* MODAL ADMIN DUYỆT ĐƠN SINH VIÊN (AD_HT2) */}
+      {adminReqModal && (
+        <div className="modal-backdrop" onClick={() => setAdminReqModal(null)}>
+          <section className="form-modal" role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()} style={{ maxWidth: "520px" }}>
+            <div className="modal-heading">
+              <div>
+                <div className="eyebrow">QUẢN TRỊ DỊCH VỤ SINH VIÊN</div>
+                <h2>Xử lý đơn {adminReqModal.code}</h2>
+                <p>Sinh viên: {adminReqModal.student_name} ({adminReqModal.student_number})</p>
+              </div>
+              <button className="modal-close" onClick={() => setAdminReqModal(null)}>
+                ×
+              </button>
+            </div>
+
+            <form className="form-stack" onSubmit={handleAdminUpdateRequest}>
+              <div style={{ background: "#f8fafc", padding: "12px", borderRadius: "8px", border: "1px solid #e2e8f0" }}>
+                <strong>{adminReqModal.request_type}: {adminReqModal.title}</strong>
+                <p style={{ margin: "4px 0 0", fontSize: "13px", color: "#64748b" }}>{adminReqModal.reason}</p>
+              </div>
+
+              <label>
+                Trạng thái phê duyệt *
+                <select value={adminNextStatus} onChange={(e) => setAdminNextStatus(e.target.value)}>
+                  <option value="DANG_XU_LY">Đang xử lý</option>
+                  <option value="DA_DUYET">Đã duyệt (Hoàn thành)</option>
+                  <option value="YEU_CAU_BO_SUNG">Yêu cầu bổ sung hồ sơ</option>
+                  <option value="TU_CHOI">Từ chối đơn</option>
+                </select>
+              </label>
+
+              <label>
+                Lý do / Phản hồi cho sinh viên:
+                <textarea
+                  rows={3}
+                  value={adminRejectionReason}
+                  onChange={(e) => setAdminRejectionReason(e.target.value)}
+                  placeholder="Ghi rõ hướng dẫn nhận kết quả hoặc lý do từ chối..."
+                />
+              </label>
+
+              <div className="modal-actions">
+                <button type="button" className="button button-ghost" onClick={() => setAdminReqModal(null)}>
+                  Hủy
+                </button>
+                <button type="submit" className="button button-primary" disabled={submittingAdminReq}>
+                  {submittingAdminReq ? "Đang lưu..." : "Xác nhận xử lý"}
+                </button>
+              </div>
+            </form>
+          </section>
+        </div>
+      )}
+    </div>
+  );
 }

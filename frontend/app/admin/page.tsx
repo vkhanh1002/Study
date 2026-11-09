@@ -1,2 +1,5 @@
-import { KnowledgeAdmin } from "@/features/knowledge-admin";
-export default function AdminPage() { return <KnowledgeAdmin />; }
+import { AdminDashboard } from "@/features/admin-dashboard";
+
+export default function AdminPage() {
+  return <AdminDashboard />;
+}

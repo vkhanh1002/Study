@@ -76,3 +76,161 @@ export type Ticket = {
   created_at: string; messages: { id: string; author_id: string; body: string; created_at: string }[];
   attachments: { id: string; filename: string; media_type: string; size_bytes: number; uploaded_at: string }[];
 };
+
+export type Applicant = {
+  id: string;
+  application_code: string;
+  identity_card: string;
+  email: string;
+  full_name: string;
+  phone: string;
+  date_of_birth: string | null;
+  address: string;
+  desired_major_id: string;
+  major_name: string;
+  desired_major_2_id?: string | null;
+  major_2_name?: string | null;
+  desired_major_3_id?: string | null;
+  major_3_name?: string | null;
+  admission_method: string;
+  priority_score: number;
+  total_score: number;
+  attachments: { filename: string; type?: string; url?: string }[];
+  status: string;
+  status_note: string;
+  created_at: string;
+  student_id: string | null;
+};
+
+export type AdmissionScore = {
+  id: string;
+  program_code: string;
+  program_name: string;
+  year: number;
+  method: string;
+  score: number;
+  scale: number;
+  note: string;
+};
+
+export type PersonnelRecord = {
+  id: string;
+  user_id?: string | null;
+  code: string;
+  kind: "lecturer" | "employee";
+  full_name: string;
+  email: string;
+  phone: string;
+  date_of_birth: string | null;
+  gender: string;
+  address: string;
+  avatar_url: string;
+  education_level: string;
+  academic_rank: string;
+  specialty: string;
+  faculty_id: string | null;
+  faculty_name: string | null;
+  department: string;
+  position: string;
+  start_date: string | null;
+  work_status: string;
+  profile_status: string; // NHAP, CHO_DUYET, DA_DUYET, TU_CHOI
+  rejection_reason: string;
+  pending_updates: Record<string, any>;
+  notes: string;
+  is_demo: boolean;
+};
+
+export type PersonnelDegree = {
+  id: string;
+  personnel_id: string;
+  title: string;
+  degree_type: string;
+  issuing_institution: string;
+  issue_year: number;
+  file_url: string;
+  status: string;
+  rejection_reason: string;
+  created_at: string;
+};
+
+export type PersonnelContract = {
+  id: string;
+  personnel_id: string;
+  personnel_name?: string | null;
+  personnel_code?: string | null;
+  contract_number: string;
+  contract_type: string;
+  start_date: string;
+  end_date: string | null;
+  status: string;
+  salary_rate: string;
+  file_url: string;
+  notes: string;
+  is_expiring_soon: boolean;
+  days_left: number | null;
+  created_at: string;
+};
+
+export type ChecklistStep = {
+  id: string;
+  step_number: number;
+  step_title: string;
+  step_description: string;
+  status: string; // CHUA_HOAN_THANH, CHO_XAC_NHAN, DA_HOAN_THANH
+  completed_at: string | null;
+  notes: string;
+};
+
+export type ChecklistResponse = {
+  progress_pct: number;
+  completed_count: number;
+  total_steps: number;
+  steps: ChecklistStep[];
+};
+
+export type StudentRequest = {
+  id: string;
+  code: string;
+  student_id: string;
+  student_number?: string;
+  student_name?: string;
+  request_type: string;
+  title: string;
+  reason: string;
+  attachments: { filename: string; type?: string; url?: string }[];
+  status: string; // CHO_TIEP_NHAN, DANG_XU_LY, DA_DUYET, TU_CHOI, YEU_CAU_BO_SUNG
+  rejection_reason: string;
+  assigned_lecturer_id?: string | null;
+  assigned_lecturer_name?: string | null;
+  rating?: number | null;
+  feedback?: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type AcademicSchedule = {
+  id: string;
+  cohort: string;
+  course_code: string;
+  course_name: string;
+  lecturer_name: string;
+  schedule_type: string; // LICH_HOC, LICH_THI
+  day_of_week: number;
+  start_time: string;
+  end_time: string;
+  schedule_date?: string | null;
+  room: string;
+  exam_format: string;
+  notes: string;
+};
+
+export type Announcement = {
+  id: string;
+  title: string;
+  content: string;
+  category: string;
+  target_role: string;
+  is_pinned: boolean;
+  created_at: string;
+};

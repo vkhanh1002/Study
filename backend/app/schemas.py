@@ -37,28 +37,47 @@ class MajorPublic(BaseModel):
 
 
 class ApplicantCreate(BaseModel):
-    email: EmailStr
+    identity_card: str = Field(default="", description="CCCD 12 số")
     full_name: str = Field(min_length=2, max_length=180)
-    phone: str = ""
+    email: EmailStr
+    phone: str = Field(default="", min_length=8, max_length=20)
     date_of_birth: date | None = None
     address: str = ""
     desired_major_id: str
+    desired_major_2_id: str | None = None
+    desired_major_3_id: str | None = None
     admission_method: str = "Học bạ (demo)"
+    priority_score: float = 0.0
+    total_score: float = 0.0
+    attachments: list[dict] = Field(default_factory=list)
 
 
 class ApplicantStatusUpdate(BaseModel):
     status: str
+    status_note: str = ""
 
 
 class ApplicantPublic(BaseModel):
     id: str
+    application_code: str = ""
+    identity_card: str = ""
     email: str
     full_name: str
     phone: str
+    date_of_birth: date | None = None
+    address: str = ""
     desired_major_id: str
     major_name: str
+    desired_major_2_id: str | None = None
+    major_2_name: str | None = None
+    desired_major_3_id: str | None = None
+    major_3_name: str | None = None
     admission_method: str
+    priority_score: float = 0.0
+    total_score: float = 0.0
+    attachments: list[dict] = Field(default_factory=list)
     status: str
+    status_note: str = ""
     created_at: datetime
     student_id: str | None
 
@@ -131,6 +150,7 @@ class PersonnelUpdate(BaseModel):
 
 class PersonnelPublic(BaseModel):
     id: str
+    user_id: str | None = None
     code: str
     kind: str
     full_name: str
@@ -149,6 +169,9 @@ class PersonnelPublic(BaseModel):
     position: str
     start_date: date | None
     work_status: str
+    profile_status: str = "DA_DUYET"
+    rejection_reason: str = ""
+    pending_updates: dict = Field(default_factory=dict)
     notes: str
     is_demo: bool
 
@@ -354,4 +377,222 @@ class StudySummary(BaseModel):
     upcoming_deadlines: int
     upcoming_exams: int
     tasks: list[StudyTaskPublic]
+
+
+# ==========================================
+# CÁC SCHEMA MỚI CHO MODULE NHÂN SỰ
+# ==========================================
+
+class PersonnelProfileSelfUpdate(BaseModel):
+    phone: str | None = None
+    address: str | None = None
+    avatar_url: str | None = None
+    education_level: str | None = None
+    academic_rank: str | None = None
+    specialty: str | None = None
+    notes: str | None = None
+
+
+class PersonnelReviewUpdate(BaseModel):
+    action: Literal["APPROVE", "REJECT"]
+    rejection_reason: str = ""
+
+
+class PersonnelDegreeCreate(BaseModel):
+    title: str = Field(min_length=2, max_length=200)
+    degree_type: str = "Bằng đại học"
+    issuing_institution: str = Field(min_length=2, max_length=200)
+    issue_year: int = Field(ge=1950, le=2100)
+    file_url: str = ""
+
+
+class PersonnelDegreePublic(BaseModel):
+    id: str
+    personnel_id: str
+    title: str
+    degree_type: str
+    issuing_institution: str
+    issue_year: int
+    file_url: str
+    status: str
+    rejection_reason: str
+    created_at: datetime
+
+
+class DegreeReviewUpdate(BaseModel):
+    action: Literal["APPROVE", "REJECT"]
+    rejection_reason: str = ""
+
+
+class PersonnelContractCreate(BaseModel):
+    personnel_id: str
+    contract_number: str
+    contract_type: str
+    start_date: date
+    end_date: date | None = None
+    status: str = "Hiệu lực"
+    salary_rate: str = ""
+    notes: str = ""
+    file_url: str = ""
+
+
+class PersonnelContractPublic(BaseModel):
+    id: str
+    personnel_id: str
+    personnel_name: str | None = None
+    personnel_code: str | None = None
+    contract_number: str
+    contract_type: str
+    start_date: date
+    end_date: date | None
+    status: str
+    salary_rate: str
+    file_url: str
+    notes: str
+    is_expiring_soon: bool = False
+    days_left: int | None = None
+    created_at: datetime
+
+
+# ==========================================
+# CÁC SCHEMA MỚI CHO MODULE TUYỂN SINH
+# ==========================================
+
+class ScoreCalculationRequest(BaseModel):
+    admission_method: str  # "THPT", "KetHopIELTS", "HSA", "TSA"
+    subject_1: float = 0.0
+    subject_2: float = 0.0
+    subject_3: float = 0.0
+    ielts_score: float = 0.0
+    aptitude_score: float = 0.0
+    priority_score: float = 0.0
+
+
+class ScoreCalculationResponse(BaseModel):
+    calculated_score: float
+    scale: int  # 30, 100, 150
+    details: str
+    eligible_majors: list[dict]
+
+
+class ApplicantDocumentUpload(BaseModel):
+    attachments: list[dict]
+
+
+# ==========================================
+# CÁC SCHEMA MỚI CHO MODULE HỖ TRỢ NGƯỜI HỌC
+# ==========================================
+
+class ChecklistStepUpdate(BaseModel):
+    status: str  # CHUA_HOAN_THANH, CHO_XAC_NHAN, DA_HOAN_THANH
+    notes: str = ""
+
+
+class ChecklistStepPublic(BaseModel):
+    id: str
+    student_id: str
+    step_number: int
+    step_title: str
+    step_description: str
+    status: str
+    completed_at: datetime | None
+    notes: str
+
+
+class StudentRequestCreate(BaseModel):
+    request_type: str
+    title: str = Field(min_length=3, max_length=200)
+    reason: str = Field(min_length=5, max_length=5000)
+    attachments: list[dict] = Field(default_factory=list)
+
+
+class StudentRequestPublic(BaseModel):
+    id: str
+    code: str
+    student_id: str
+    student_number: str | None = None
+    student_name: str | None = None
+    request_type: str
+    title: str
+    reason: str
+    attachments: list[dict]
+    status: str
+    rejection_reason: str
+    assigned_lecturer_id: str | None
+    assigned_lecturer_name: str | None = None
+    rating: int | None
+    feedback: str | None
+    created_at: datetime
+    updated_at: datetime
+
+
+class StudentRequestStatusUpdate(BaseModel):
+    status: str
+    rejection_reason: str = ""
+    assigned_lecturer_id: str | None = None
+
+
+class StudentRequestRating(BaseModel):
+    rating: int = Field(ge=1, le=5)
+    feedback: str = ""
+
+
+class AcademicSchedulePublic(BaseModel):
+    id: str
+    cohort: str
+    course_code: str
+    course_name: str
+    lecturer_name: str
+    schedule_type: str
+    day_of_week: int
+    start_time: str
+    end_time: str
+    schedule_date: date | None
+    room: str
+    exam_format: str
+    notes: str
+
+
+class AnnouncementPublic(BaseModel):
+    id: str
+    title: str
+    content: str
+    category: str
+    target_role: str
+    is_pinned: bool
+    created_at: datetime
+
+
+# ==========================================
+# CÁC SCHEMA MỚI CHO MODULE QUẢN TRỊ (ADMIN)
+# ==========================================
+
+class UserAdminCreate(BaseModel):
+    email: EmailStr
+    full_name: str = Field(min_length=2, max_length=180)
+    password: str = Field(min_length=6, max_length=100)
+    role: Literal["ADMIN", "GIANG_VIEN", "SINH_VIEN"]
+
+
+class UserAdminUpdate(BaseModel):
+    full_name: str | None = None
+    role: str | None = None
+    is_active: bool | None = None
+    password: str | None = None
+
+
+class MajorAdminCreate(BaseModel):
+    code: str = Field(min_length=2, max_length=20)
+    name: str = Field(min_length=2, max_length=180)
+    description: str = ""
+    faculty_id: str
+    duration_years: int = 4
+    tuition_per_year_vnd: int = 0
+    admission_quota: int = 0
+    admission_status: str = "Đang tuyển sinh"
+
+
+class FacultyAdminCreate(BaseModel):
+    name: str = Field(min_length=2, max_length=160)
+
 

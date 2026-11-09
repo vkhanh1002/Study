@@ -25,35 +25,92 @@ import {
 import { useAuth } from "@/lib/auth-context";
 import { api } from "@/lib/api";
 
-type NavigationLink = { label: string; href: string; icon: typeof LayoutDashboard; roles?: string[] };
-const navigation: { title: string; links: NavigationLink[] }[] = [
-  { title: "TỔNG QUAN", links: [{ label: "Dashboard", href: "/", icon: LayoutDashboard }] },
-  { title: "TUYỂN SINH", links: [{ label: "Tuyển sinh & hồ sơ", href: "/admissions", icon: GraduationCap, roles: ["super_admin", "admission_staff"] }] },
-  {
-    title: "QUẢN LÝ HỒ SƠ",
-    links: [
-      { label: "Hồ sơ sinh viên", href: "/profiles", icon: UsersRound, roles: ["super_admin", "student"] },
-      { label: "Hồ sơ giảng viên", href: "/personnel/lecturers", icon: GraduationCap, roles: ["super_admin"] },
-      { label: "Hồ sơ nhân viên", href: "/personnel/employees", icon: BriefcaseBusiness, roles: ["super_admin"] },
-    ],
-  },
-  {
-    title: "HỖ TRỢ NGƯỜI HỌC",
-    links: [
-      { label: "Trung tâm hỗ trợ", href: "/support", icon: CircleHelp },
-      { label: "Kế hoạch học tập", href: "/study-planner", icon: CalendarCheck2, roles: ["super_admin", "student"] },
-      { label: "Quản lý FAQ", href: "/admin", icon: BookOpen, roles: ["super_admin"] },
-    ],
-  },
-  {
-    title: "AI ASSISTANT",
-    links: [
-      { label: "Trợ lý NEU Study AI", href: "/assistant", icon: Bot },
-      { label: "Kho tri thức AI", href: "/admin", icon: BookOpen, roles: ["super_admin"] },
-    ],
-  },
-  { title: "NHÂN SỰ", links: [{ label: "Tổng quan nhân sự", href: "/personnel", icon: UserRound, roles: ["super_admin"] }] },
-];
+type NavigationLink = { label: string; href: string; icon: typeof LayoutDashboard };
+
+function getNormalizedRole(userRole?: string | null): "GUEST" | "ADMIN" | "GIANG_VIEN" | "SINH_VIEN" {
+  if (!userRole) return "GUEST";
+  const r = userRole.toUpperCase();
+  if (["ADMIN", "SUPER_ADMIN", "ADMISSION_STAFF", "SUPPORT_STAFF"].includes(r)) return "ADMIN";
+  if (["GIANG_VIEN", "LECTURER"].includes(r)) return "GIANG_VIEN";
+  if (["SINH_VIEN", "STUDENT"].includes(r)) return "SINH_VIEN";
+  return "GUEST";
+}
+
+function getNavigationForRole(role: "GUEST" | "ADMIN" | "GIANG_VIEN" | "SINH_VIEN"): { title: string; links: NavigationLink[] }[] {
+  if (role === "SINH_VIEN") {
+    return [
+      { title: "TỔNG QUAN", links: [{ label: "Dashboard", href: "/", icon: LayoutDashboard }] },
+      { title: "HỒ SƠ", links: [{ label: "Hồ sơ sinh viên", href: "/profiles", icon: UsersRound }] },
+      {
+        title: "DỊCH VỤ SINH VIÊN",
+        links: [
+          { label: "Thủ tục nhập học", href: "/support?tab=checklist", icon: CalendarCheck2 },
+          { label: "Đơn trực tuyến", href: "/support?tab=requests", icon: BookOpen },
+          { label: "Thời khóa biểu & Lịch thi", href: "/support?tab=schedules", icon: CalendarCheck2 },
+          { label: "Cẩm nang sinh viên", href: "/support?tab=handbook", icon: CircleHelp },
+        ],
+      },
+      { title: "KẾ HOẠCH HỌC TẬP", links: [{ label: "Study Planner", href: "/study-planner", icon: CalendarCheck2 }] },
+      { title: "AI ASSISTANT", links: [{ label: "Trợ lý NEU Study AI", href: "/assistant", icon: Bot }] },
+    ];
+  }
+
+  if (role === "GIANG_VIEN") {
+    return [
+      { title: "TỔNG QUAN", links: [{ label: "Dashboard", href: "/", icon: LayoutDashboard }] },
+      {
+        title: "HỒ SƠ GIẢNG VIÊN",
+        links: [
+          { label: "Lý lịch khoa học", href: "/personnel/me", icon: GraduationCap },
+          { label: "Văn bằng & Chứng chỉ", href: "/personnel/me?tab=degrees", icon: BookOpen },
+          { label: "Hợp đồng lao động", href: "/personnel/me?tab=contracts", icon: BriefcaseBusiness },
+          { label: "Nhiệm vụ được giao", href: "/personnel/me?tab=tasks", icon: CalendarCheck2 },
+          { label: "Thông báo nhân sự", href: "/personnel/me?tab=news", icon: CircleHelp },
+        ],
+      },
+      { title: "AI ASSISTANT", links: [{ label: "Trợ lý NEU Study AI", href: "/assistant", icon: Bot }] },
+    ];
+  }
+
+  if (role === "ADMIN") {
+    return [
+      { title: "TỔNG QUAN", links: [{ label: "Dashboard", href: "/", icon: LayoutDashboard }] },
+      { title: "TRUNG TÂM QUẢN TRỊ", links: [{ label: "Quản trị hợp nhất", href: "/admin", icon: LayoutDashboard }] },
+      { title: "TUYỂN SINH", links: [{ label: "Quản lý tuyển sinh", href: "/admissions", icon: GraduationCap }] },
+      {
+        title: "NHÂN SỰ",
+        links: [
+          { label: "Quản lý nhân sự", href: "/personnel", icon: UserRound },
+          { label: "Hồ sơ giảng viên", href: "/personnel/lecturers", icon: GraduationCap },
+          { label: "Hồ sơ nhân viên", href: "/personnel/employees", icon: BriefcaseBusiness },
+        ],
+      },
+      {
+        title: "HỖ TRỢ NGƯỜI HỌC",
+        links: [
+          { label: "Quản lý đơn sinh viên", href: "/support?tab=requests", icon: BookOpen },
+          { label: "Trung tâm hỗ trợ", href: "/support", icon: CircleHelp },
+        ],
+      },
+      {
+        title: "AI ASSISTANT",
+        links: [
+          { label: "Trợ lý NEU Study AI", href: "/assistant", icon: Bot },
+          { label: "Kho tri thức AI", href: "/admin?tab=kb", icon: BookOpen },
+        ],
+      },
+    ];
+  }
+
+  // Khách / Thí sinh chưa đăng nhập
+  return [
+    { title: "TỔNG QUAN", links: [{ label: "Dashboard", href: "/", icon: LayoutDashboard }] },
+    { title: "TUYỂN SINH", links: [{ label: "Cổng tuyển sinh & Tra cứu", href: "/admissions", icon: GraduationCap }] },
+    { title: "GIẢNG VIÊN", links: [{ label: "Đội ngũ giảng viên", href: "/admissions?tab=lecturers", icon: UsersRound }] },
+    { title: "HỖ TRỢ", links: [{ label: "Cẩm nang & Tra cứu website", href: "/support", icon: CircleHelp }] },
+    { title: "AI ASSISTANT", links: [{ label: "Trợ lý NEU Study AI", href: "/assistant", icon: Bot }] },
+  ];
+}
 
 export function Shell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -70,18 +127,8 @@ export function Shell({ children }: { children: React.ReactNode }) {
   >([]);
   const [unreadCount, setUnreadCount] = useState(0);
 
-  const visibleNavigation = navigation
-    .map((group) => ({
-      ...group,
-      links: group.links
-        .filter((link) => !link.roles || link.roles.includes(user?.role ?? ""))
-        .map((link) =>
-          link.href === "/support" && ["super_admin", "support_staff"].includes(user?.role ?? "")
-            ? { ...link, label: "Danh sách yêu cầu" }
-            : link
-        ),
-    }))
-    .filter((group) => group.links.length > 0);
+  const normalizedRole = getNormalizedRole(user?.role);
+  const visibleNavigation = useMemo(() => getNavigationForRole(normalizedRole), [normalizedRole]);
 
   useEffect(() => {
     if (!user) {
@@ -384,14 +431,11 @@ export function Shell({ children }: { children: React.ReactNode }) {
 }
 
 function roleLabel(role: string) {
-  const labels: Record<string, string> = {
-    super_admin: "Quản trị viên",
-    admission_staff: "Tuyển sinh",
-    student: "Sinh viên",
-    lecturer: "Giảng viên",
-    support_staff: "Hỗ trợ người học",
-  };
-  return labels[role] ?? "Thành viên";
+  const r = role.toUpperCase();
+  if (["ADMIN", "SUPER_ADMIN", "ADMISSION_STAFF", "SUPPORT_STAFF"].includes(r)) return "Quản trị viên";
+  if (["GIANG_VIEN", "LECTURER"].includes(r)) return "Giảng viên";
+  if (["SINH_VIEN", "STUDENT"].includes(r)) return "Sinh viên";
+  return "Thành viên";
 }
 
 function LoginDialog({ onClose }: { onClose: () => void }) {
@@ -400,6 +444,13 @@ function LoginDialog({ onClose }: { onClose: () => void }) {
   const [password, setPassword] = useState("StudyDemo2026!");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+
+  const demoPresets = [
+    { label: "Quản trị viên", email: "admin@study.edu.vn", role: "ADMIN" },
+    { label: "Giảng viên", email: "giangvien@study.edu.vn", role: "GIANG_VIEN" },
+    { label: "Sinh viên", email: "sinhvien@study.edu.vn", role: "SINH_VIEN" },
+  ];
+
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();
     setBusy(true);
@@ -435,7 +486,34 @@ function LoginDialog({ onClose }: { onClose: () => void }) {
         </div>
         <div className="eyebrow">CHÀO MỪNG BẠN TRỞ LẠI</div>
         <h2 id="login-title">Đăng nhập Study</h2>
-        <p className="muted-text">Đăng nhập để truy cập các nghiệp vụ theo vai trò của bạn.</p>
+        <p className="muted-text">Đăng nhập theo đúng 3 vai trò: Quản trị viên, Giảng viên hoặc Sinh viên.</p>
+
+        {/* Quick Demo Role Picker */}
+        <div style={{ display: "flex", gap: "6px", marginBottom: "16px", flexWrap: "wrap" }}>
+          {demoPresets.map((preset) => (
+            <button
+              key={preset.role}
+              type="button"
+              onClick={() => {
+                setEmail(preset.email);
+                setPassword("StudyDemo2026!");
+              }}
+              style={{
+                padding: "4px 10px",
+                borderRadius: "999px",
+                border: email === preset.email ? "1.5px solid #0284c7" : "1px solid #cbd5e1",
+                background: email === preset.email ? "#e0f2fe" : "#f8fafc",
+                color: email === preset.email ? "#0369a1" : "#475569",
+                fontSize: "12px",
+                fontWeight: 650,
+                cursor: "pointer",
+              }}
+            >
+              {preset.label}
+            </button>
+          ))}
+        </div>
+
         <form onSubmit={submit} className="form-stack">
           <label>
             Email
