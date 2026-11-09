@@ -154,6 +154,7 @@ class GeminiProvider:
                 "maxOutputTokens": max_tokens,
                 "thinkingConfig": {
                     "includeThoughts": False,
+                    "thinkingBudget": 0,
                 },
             },
         }
