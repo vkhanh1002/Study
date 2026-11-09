@@ -239,11 +239,20 @@ class GroqProvider:
     async def _select_model(self, timeout_seconds: float) -> str:
         available = await self._available_models(timeout_seconds)
         configured = settings.groq_model.strip() if settings.groq_model else ""
-        allowed = "openai/gpt-oss-20b"
-        if configured == allowed and configured in available:
+        if configured in available:
             return configured
+        preferred_fallbacks = (
+            "llama-3.3-70b-versatile",
+            "llama-3.1-8b-instant",
+            "llama-3.1-70b-versatile",
+            "mixtral-8x7b-32768",
+            "gemma2-9b-it",
+        )
+        for cand in preferred_fallbacks:
+            if cand in available:
+                return cand
         logger.warning("Configured Groq model unavailable configured_model=%s model_available=%s",
-                       configured, allowed in available)
+                       configured, False)
         raise ProviderError(self.name, None, "configured_model_unavailable", error_kind="configuration_error")
 
     async def stream(self, system: str, history: list[dict], question: str, max_tokens: int,
